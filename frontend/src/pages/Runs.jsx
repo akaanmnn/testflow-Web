@@ -5,8 +5,38 @@ export default function Runs() {
   const [runs, setRuns] = useState([]);
   const [scenarios, setScenarios] = useState([]);
   const [detail, setDetail] = useState(null);
+  const [detailSteps, setDetailSteps] = useState({}); // stepId -> adım tanımı
   const [preview, setPreview] = useState(null); // büyütülen ekran görüntüsü
   const [error, setError] = useState('');
+
+  const openDetail = async (run) => {
+    setDetail(run);
+    setDetailSteps({});
+    try {
+      const s = await api(`/scenarios/${run.scenarioId}`);
+      const map = {};
+      for (const st of s.steps || []) map[st.id] = st;
+      setDetailSteps(map);
+    } catch { /* senaryo silinmiş olabilir — adım tanımları görünmez, sorun değil */ }
+  };
+
+  // Adımı insan diline çevir: aksiyon + hedef + değer
+  const stepLabel = (result) => {
+    const st = result.stepId ? detailSteps[result.stepId] : null;
+    if (!st) return null;
+    let target = '';
+    try {
+      const cands = JSON.parse(st.candidates || '[]');
+      if (cands.length) target = `${cands[0].strategy}=${String(cands[0].value).slice(0, 30)}`;
+    } catch {}
+    let value = '';
+    if (st.dataBinding) {
+      try { value = ` → 📎 ${JSON.parse(st.dataBinding).dataSetKey}`; } catch {}
+    } else if (st.value && ['fill', 'select', 'assert-text'].includes(st.action)) {
+      value = st.sensitive ? ' → ••••' : ` → "${String(st.value).slice(0, 25)}"`;
+    }
+    return { action: st.action, detail: `${target}${value}` };
+  };
 
   const load = () =>
     Promise.all([api('/runs'), api('/scenarios')])
@@ -39,7 +69,7 @@ export default function Runs() {
             const durationSec = r.startedAt && r.finishedAt
               ? Math.round((new Date(r.finishedAt) - new Date(r.startedAt)) / 1000) : null;
             return (
-              <tr key={r.id} onClick={() => setDetail(r)} style={{ cursor: 'pointer' }}>
+              <tr key={r.id} onClick={() => openDetail(r)} style={{ cursor: 'pointer' }}>
                 <td style={{ color: 'var(--accent)' }}>{scenarioName(r.scenarioId)}</td>
                 <td><span className={`badge ${r.status}`}>{r.status}</span></td>
                 <td>{r.triggeredBy}</td>
@@ -64,11 +94,21 @@ export default function Runs() {
             <button className="ghost" onClick={() => setDetail(null)}>Kapat</button>
           </div>
           <table>
-            <thead><tr><th>#</th><th>Durum</th><th>Healed</th><th>Hata</th><th>Görüntü</th></tr></thead>
+            <thead><tr><th>#</th><th>Adım</th><th>Durum</th><th>Healed</th><th>Hata</th><th>Görüntü</th></tr></thead>
             <tbody>
-              {detail.stepResults.map((s) => (
+              {detail.stepResults.map((s) => {
+                const label = stepLabel(s);
+                return (
                 <tr key={s.id}>
                   <td>{s.orderIndex + 1}</td>
+                  <td>
+                    {label ? (
+                      <>
+                        <code>{label.action}</code>
+                        <div className="muted" style={{ fontSize: 12, marginTop: 3 }}>{label.detail}</div>
+                      </>
+                    ) : <span className="muted">adım tanımı yok (senaryo değişmiş/silinmiş olabilir)</span>}
+                  </td>
                   <td><span className={`badge ${s.status}`}>{s.status}</span></td>
                   <td>{s.healed ? `✓ (${s.healedStrategy ?? '-'})` : '—'}</td>
                   <td className="muted">{s.errorMessage ?? '—'}</td>
@@ -80,7 +120,8 @@ export default function Runs() {
                     ) : <span className="muted">—</span>}
                   </td>
                 </tr>
-              ))}
+                );
+              })}
             </tbody>
           </table>
         </div>
