@@ -33,9 +33,20 @@ export default function Login() {
   };
 
   return (
-    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh' }}>
-      <div className="card" style={{ width: 380 }}>
-        <h1 style={{ fontSize: 22, marginBottom: 4 }}>TestFlow</h1>
+    <div style={{
+      display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh',
+      background: 'radial-gradient(900px 500px at 20% 0%, var(--accent-soft), transparent), var(--bg)',
+    }}>
+      <div className="card" style={{ width: 390, padding: 28 }}>
+        <div className="row" style={{ gap: 9, marginBottom: 6 }}>
+          <span style={{
+            width: 28, height: 28, borderRadius: 9,
+            background: 'linear-gradient(135deg, var(--accent), #7b7ee8)',
+            display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+            color: '#fff', fontSize: 13,
+          }}>▶</span>
+          <h1 style={{ fontSize: 22, margin: 0 }}>TestFlow</h1>
+        </div>
         <p className="muted" style={{ marginBottom: 24 }}>Şirket hesabınızla giriş yapın</p>
         <div style={{ marginBottom: 12 }}>
           <label className="muted" style={{ fontSize: 12 }}>Kullanıcı adı (AD)</label>
