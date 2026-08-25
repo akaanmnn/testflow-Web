@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { useEffect, useState, useRef } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import { api } from '../lib/api';
 
 export default function Scenarios() {
@@ -11,6 +11,10 @@ export default function Scenarios() {
   const [startUrl, setStartUrl] = useState('');
   const [newFolderName, setNewFolderName] = useState('');
   const [error, setError] = useState('');
+  const [extension, setExtension] = useState(null); // null=bilinmiyor, false=yok, string=versiyon
+  const [recording, setRecording] = useState(false);
+  const navigate = useNavigate();
+  const recordMeta = useRef({});
 
   const load = async () => {
     const [s, f] = await Promise.all([api('/scenarios'), api('/folders')]);
@@ -20,14 +24,58 @@ export default function Scenarios() {
 
   useEffect(() => { load().catch((e) => setError(e.message)); }, []);
 
-  const createScenario = async () => {
+  // Eklenti tespiti + kayıt sonucu dinleyicisi
+  useEffect(() => {
+    const onMessage = async (event) => {
+      if (event.source !== window || !event.data) return;
+
+      if (event.data.type === 'TESTFLOW_PONG') {
+        setExtension(event.data.version);
+      }
+
+      if (event.data.type === 'TESTFLOW_RECORDING_DONE') {
+        setRecording(false);
+        const steps = (event.data.steps || []).map((s, i) => ({ ...s, orderIndex: i, dataBinding: null }));
+        try {
+          const created = await api('/scenarios', {
+            method: 'POST',
+            body: JSON.stringify({
+              name: event.data.scenarioName,
+              startUrl: event.data.startUrl,
+              folderId: recordMeta.current.folderId || null,
+              steps,
+            }),
+          });
+          navigate(`/scenarios/${created.id}`);
+        } catch (e) {
+          setError(`Kayıt alındı ama senaryo kaydedilemedi: ${e.message}`);
+        }
+      }
+    };
+    window.addEventListener('message', onMessage);
+
+    // Eklenti var mı? (bridge.js cevap verir)
+    window.postMessage({ type: 'TESTFLOW_PING' }, '*');
+    const timeout = setTimeout(() => setExtension((v) => (v === null ? false : v)), 1500);
+
+    return () => { window.removeEventListener('message', onMessage); clearTimeout(timeout); };
+  }, [navigate]);
+
+  const startRecording = () => {
+    if (!name || !startUrl) return;
+    recordMeta.current = { folderId: selectedFolder || null };
+    setRecording(true);
+    window.postMessage({ type: 'TESTFLOW_START_RECORDING', scenarioName: name, startUrl }, '*');
+  };
+
+  const createEmpty = async () => {
     try {
-      await api('/scenarios', {
+      const created = await api('/scenarios', {
         method: 'POST',
         body: JSON.stringify({ name, startUrl, folderId: selectedFolder || null, steps: [] }),
       });
       setName(''); setStartUrl(''); setShowNew(false);
-      await load();
+      navigate(`/scenarios/${created.id}`);
     } catch (e) { setError(e.message); }
   };
 
@@ -63,11 +111,32 @@ export default function Scenarios() {
 
       {showNew && (
         <div className="card" style={{ marginBottom: 16 }}>
-          <div className="row" style={{ marginBottom: 10 }}>
+          <div className="row" style={{ marginBottom: 12 }}>
             <input placeholder="Senaryo adı" value={name} onChange={(e) => setName(e.target.value)} />
             <input placeholder="Başlangıç URL (https://...)" value={startUrl} onChange={(e) => setStartUrl(e.target.value)} />
           </div>
-          <button onClick={createScenario} disabled={!name || !startUrl}>Oluştur</button>
+
+          {recording ? (
+            <div className="badge queued" style={{ padding: '8px 14px' }}>
+              🔴 Kayıt sürüyor — açılan sekmede işlemlerinizi yapın, bitince "Kaydı Bitir"e basın.
+            </div>
+          ) : (
+            <div className="row">
+              <button onClick={startRecording} disabled={!name || !startUrl || !extension}>
+                🔴 Kaydı Başlat
+              </button>
+              <button className="ghost" onClick={createEmpty} disabled={!name || !startUrl}>
+                Boş Oluştur (adımları elle gir)
+              </button>
+              {extension === false && (
+                <span className="muted" style={{ fontSize: 12 }}>
+                  Kayıt için TestFlow Recorder eklentisi gerekli —
+                  Chrome/Edge'de <code>chrome://extensions</code> → Geliştirici modu →
+                  "Paketlenmemiş öğe yükle" → repodaki <code>extension/</code> klasörünü seçin, sonra bu sayfayı yenileyin.
+                </span>
+              )}
+            </div>
+          )}
         </div>
       )}
 

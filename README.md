@@ -90,3 +90,24 @@ sorgulanır; `LdapAuthService` içindeki filtreleri buna göre güncelleyin
 | `GET/POST/DELETE /api/environments` | Ortamlar |
 | `GET/POST /api/runs` | Koşum kaydı + geçmiş |
 | `GET /api/health` | Sağlık kontrolü |
+
+## Recorder Eklentisi (Chrome & Edge)
+
+Web'den test kaydı için `extension/` klasöründeki tarayıcı eklentisi kullanılır.
+
+**Kurulum (geliştirme):**
+1. Chrome/Edge → `chrome://extensions` (Edge: `edge://extensions`)
+2. Sağ üstten **Geliştirici modu**nu aç
+3. **Paketlenmemiş öğe yükle** → repodaki `extension/` klasörünü seç
+4. TestFlow sekmesini yenile — "Kaydı Başlat" butonu aktifleşir
+
+**Akış:** Senaryolar → Yeni Senaryo → ad + URL gir → **Kaydı Başlat** →
+hedef site yeni sekmede açılır, sağ üstte kayıt çubuğu görünür → tıklama ve
+form doldurma işlemleri otomatik adım olarak toplanır (şifre alanları maskelenir) →
+**Kaydı Bitir** → TestFlow'a dönülür, senaryo adımlarıyla hazır gelir.
+
+Her adım için çoklu locator adayı toplanır (id, data-testid, name, aria-label,
+placeholder, metin, CSS yolu) — self-healing koşum motorunun temelini oluşturur.
+
+**Şirket dağıtımı:** Eklenti, grup ilkesiyle (ExtensionInstallForcelist)
+zorunlu kurulabilir veya paketlenip iç mağazadan dağıtılabilir.
