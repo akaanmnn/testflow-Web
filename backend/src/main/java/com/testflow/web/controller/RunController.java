@@ -75,6 +75,7 @@ public class RunController {
                 result.setHealed(r.healed());
                 result.setHealedStrategy(r.healedStrategy());
                 result.setErrorMessage(r.errorMessage());
+                result.setScreenshot(r.screenshot());
                 run.getStepResults().add(result);
             }
         }
@@ -106,6 +107,6 @@ public class RunController {
                 r.getStatus(), r.getTriggeredBy(), r.getStartedAt(), r.getFinishedAt(), r.getCreatedAt(),
                 r.getStepResults().stream().map(s -> new RunStepResultDto(
                         s.getId(), s.getStepId(), s.getOrderIndex(), s.getStatus(),
-                        s.isHealed(), s.getHealedStrategy(), s.getErrorMessage())).toList());
+                        s.isHealed(), s.getHealedStrategy(), s.getErrorMessage(), s.getScreenshot())).toList());
     }
 }

@@ -22,7 +22,7 @@ public class CommonDtos {
     // Run
     public record RunStepResultDto(
             String id, String stepId, int orderIndex, String status,
-            boolean healed, String healedStrategy, String errorMessage) {}
+            boolean healed, String healedStrategy, String errorMessage, String screenshot) {}
 
     public record RunDto(
             String id, String scenarioId, String environmentId, String testDataSetId,
@@ -40,5 +40,5 @@ public class CommonDtos {
 
     public record IngestStepResult(
             int orderIndex, String stepId, String status,
-            boolean healed, String healedStrategy, String errorMessage) {}
+            boolean healed, String healedStrategy, String errorMessage, String screenshot) {}
 }

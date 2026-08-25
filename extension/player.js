@@ -134,11 +134,20 @@
     });
   }
 
+  async function captureScreenshot() {
+    try {
+      const res = await chrome.runtime.sendMessage({ type: 'CAPTURE' });
+      return res?.screenshot || null;
+    } catch { return null; }
+  }
+
   async function executeStep(step, stepIndex) {
     const candidates = JSON.parse(step.candidates || '[]');
     const found = await findElement(candidates, validatorFor(step));
     if (!found) {
-      const r = { status: 'failed', healed: false, errorMessage: 'Element bulunamadı (tüm locator adayları denendi; tür uyumsuz eşleşmeler reddedildi).' };
+      const r = { status: 'failed', healed: false,
+        errorMessage: 'Element bulunamadı (tüm locator adayları denendi; tür uyumsuz eşleşmeler reddedildi).',
+        screenshot: await captureScreenshot() };
       await reportResult(stepIndex, step, r);
       return r;
     }
@@ -152,42 +161,42 @@
         // ÖNEMLİ: sonucu TIKLAMADAN ÖNCE raporla. Tıklama sayfa geçişi
         // başlatırsa bu script ölür ve rapor kaybolur; yeni sayfada aynı
         // adım tekrar aranıp yanlış fail üretirdi.
-        const r = { status: 'passed', healed, healedStrategy };
+        const r = { status: 'passed', healed, healedStrategy, screenshot: await captureScreenshot() };
         await reportResult(stepIndex, step, r);
         realisticClick(found.el);
         return r;
       } else if (step.action === 'fill') {
         if (step.value === '***' || step.value == null) {
           const first = candidates[0] ? `${candidates[0].strategy}=${candidates[0].value}` : 'bilinmiyor';
-          const r = { status: 'failed', healed, healedStrategy,
+          const r = { status: 'failed', healed, healedStrategy, screenshot: await captureScreenshot(),
                    errorMessage: `Gizli/boş değer (eleman: ${first}) — senaryoda bu adımı 📎 ile bir test verisi anahtarına bağlayıp Kaydet'e basın. Not: aynı alan için birden fazla fill adımı oluşmuş olabilir, fazlasını silin.` };
           await reportResult(stepIndex, step, r);
           return r;
         }
         found.el.focus();
         setNativeValue(found.el, step.value);
-        const r = { status: 'passed', healed, healedStrategy };
+        const r = { status: 'passed', healed, healedStrategy, screenshot: await captureScreenshot() };
         await reportResult(stepIndex, step, r);
         return r;
       } else if (step.action === 'select') {
         setNativeValue(found.el, step.value);
-        const r = { status: 'passed', healed, healedStrategy };
+        const r = { status: 'passed', healed, healedStrategy, screenshot: await captureScreenshot() };
         await reportResult(stepIndex, step, r);
         return r;
       } else if (step.action === 'assert-visible') {
         // Element bulunduysa (findElement görünürlük kontrolü yapıyor) geçer
-        const r = { status: 'passed', healed, healedStrategy };
+        const r = { status: 'passed', healed, healedStrategy, screenshot: await captureScreenshot() };
         await reportResult(stepIndex, step, r);
         return r;
       } else if (step.action === 'assert-text') {
         const actual = (found.el.innerText || found.el.value || '').trim();
         const expected = (step.value || '').trim();
         if (expected && actual.includes(expected)) {
-          const r = { status: 'passed', healed, healedStrategy };
+          const r = { status: 'passed', healed, healedStrategy, screenshot: await captureScreenshot() };
           await reportResult(stepIndex, step, r);
           return r;
         }
-        const r = { status: 'failed', healed, healedStrategy,
+        const r = { status: 'failed', healed, healedStrategy, screenshot: await captureScreenshot(),
                  errorMessage: `Metin doğrulaması başarısız — beklenen: "${expected.slice(0,80)}", bulunan: "${actual.slice(0,80)}"` };
         await reportResult(stepIndex, step, r);
         return r;

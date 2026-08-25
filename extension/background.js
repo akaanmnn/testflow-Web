@@ -92,6 +92,18 @@ async function handle(msg, sender) {
     return { playing: true, steps: s.steps, index: s.index };
   }
 
+  // player.js adım öncesi ekran görüntüsü ister
+  if (msg.type === 'CAPTURE') {
+    const s = await getSession();
+    if (!s || s.mode !== 'play' || !sender.tab || sender.tab.id !== s.tabId) return { screenshot: null };
+    try {
+      const dataUrl = await chrome.tabs.captureVisibleTab(sender.tab.windowId, { format: 'jpeg', quality: 50 });
+      return { screenshot: dataUrl };
+    } catch (e) {
+      return { screenshot: null }; // kota/izin sorunu — görüntüsüz devam
+    }
+  }
+
   // player.js her adım sonucunu bildirir
   if (msg.type === 'STEP_RESULT') {
     const s = await getSession();

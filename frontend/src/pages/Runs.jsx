@@ -5,6 +5,7 @@ export default function Runs() {
   const [runs, setRuns] = useState([]);
   const [scenarios, setScenarios] = useState([]);
   const [detail, setDetail] = useState(null);
+  const [preview, setPreview] = useState(null); // büyütülen ekran görüntüsü
   const [error, setError] = useState('');
 
   const load = () =>
@@ -63,7 +64,7 @@ export default function Runs() {
             <button className="ghost" onClick={() => setDetail(null)}>Kapat</button>
           </div>
           <table>
-            <thead><tr><th>#</th><th>Durum</th><th>Healed</th><th>Hata</th></tr></thead>
+            <thead><tr><th>#</th><th>Durum</th><th>Healed</th><th>Hata</th><th>Görüntü</th></tr></thead>
             <tbody>
               {detail.stepResults.map((s) => (
                 <tr key={s.id}>
@@ -71,10 +72,26 @@ export default function Runs() {
                   <td><span className={`badge ${s.status}`}>{s.status}</span></td>
                   <td>{s.healed ? `✓ (${s.healedStrategy ?? '-'})` : '—'}</td>
                   <td className="muted">{s.errorMessage ?? '—'}</td>
+                  <td>
+                    {s.screenshot ? (
+                      <img src={s.screenshot} alt={`adım ${s.orderIndex + 1}`}
+                           style={{ width: 110, borderRadius: 6, cursor: 'zoom-in', border: '1px solid var(--border)' }}
+                           onClick={() => setPreview(s.screenshot)} />
+                    ) : <span className="muted">—</span>}
+                  </td>
                 </tr>
               ))}
             </tbody>
           </table>
+        </div>
+      )}
+      {preview && (
+        <div onClick={() => setPreview(null)}
+             style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.75)',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      zIndex: 1000, cursor: 'zoom-out' }}>
+          <img src={preview} alt="ekran görüntüsü"
+               style={{ maxWidth: '92vw', maxHeight: '92vh', borderRadius: 8 }} />
         </div>
       )}
       {error && <div className="error">{error}</div>}

@@ -34,4 +34,8 @@ public class RunStepResult {
 
     @Column(columnDefinition = "TEXT")
     private String errorMessage;
+
+    /** Adım anındaki ekran görüntüsü — data URL (jpeg base64). */
+    @Column(columnDefinition = "CLOB")
+    private String screenshot;
 }
