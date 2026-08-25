@@ -85,11 +85,21 @@
   }
 
   // ---------- Adım çalıştırma ----------
-  async function executeStep(step) {
+  // reportResult: sonucu background'a yazar (index ilerler)
+  async function reportResult(stepIndex, step, result) {
+    await chrome.runtime.sendMessage({
+      type: 'STEP_RESULT',
+      result: { orderIndex: stepIndex, stepId: step.id ?? null, ...result },
+    });
+  }
+
+  async function executeStep(step, stepIndex) {
     const candidates = JSON.parse(step.candidates || '[]');
     const found = await findElement(candidates);
     if (!found) {
-      return { status: 'failed', healed: false, errorMessage: 'Element bulunamadı (tüm locator adayları denendi).' };
+      const r = { status: 'failed', healed: false, errorMessage: 'Element bulunamadı (tüm locator adayları denendi).' };
+      await reportResult(stepIndex, step, r);
+      return r;
     }
     const healed = found.usedIndex > 0;
     const healedStrategy = healed ? found.strategy : null;
@@ -98,23 +108,40 @@
       if (step.action === 'click') {
         found.el.scrollIntoView({ block: 'center' });
         await sleep(100);
+        // ÖNEMLİ: sonucu TIKLAMADAN ÖNCE raporla. Tıklama sayfa geçişi
+        // başlatırsa bu script ölür ve rapor kaybolur; yeni sayfada aynı
+        // adım tekrar aranıp yanlış fail üretirdi.
+        const r = { status: 'passed', healed, healedStrategy };
+        await reportResult(stepIndex, step, r);
         found.el.click();
+        return r;
       } else if (step.action === 'fill') {
         if (step.value === '***' || step.value == null) {
           const first = candidates[0] ? `${candidates[0].strategy}=${candidates[0].value}` : 'bilinmiyor';
-          return { status: 'failed', healed, healedStrategy,
+          const r = { status: 'failed', healed, healedStrategy,
                    errorMessage: `Gizli/boş değer (eleman: ${first}) — senaryoda bu adımı 📎 ile bir test verisi anahtarına bağlayıp Kaydet'e basın. Not: aynı alan için birden fazla fill adımı oluşmuş olabilir, fazlasını silin.` };
+          await reportResult(stepIndex, step, r);
+          return r;
         }
         found.el.focus();
         setNativeValue(found.el, step.value);
+        const r = { status: 'passed', healed, healedStrategy };
+        await reportResult(stepIndex, step, r);
+        return r;
       } else if (step.action === 'select') {
         setNativeValue(found.el, step.value);
+        const r = { status: 'passed', healed, healedStrategy };
+        await reportResult(stepIndex, step, r);
+        return r;
       } else {
-        return { status: 'skipped', healed: false, errorMessage: `Desteklenmeyen aksiyon: ${step.action}` };
+        const r = { status: 'skipped', healed: false, errorMessage: `Desteklenmeyen aksiyon: ${step.action}` };
+        await reportResult(stepIndex, step, r);
+        return r;
       }
-      return { status: 'passed', healed, healedStrategy };
     } catch (e) {
-      return { status: 'failed', healed, healedStrategy, errorMessage: String(e).slice(0, 300) };
+      const r = { status: 'failed', healed, healedStrategy, errorMessage: String(e).slice(0, 300) };
+      await reportResult(stepIndex, step, r);
+      return r;
     }
   }
 
@@ -123,11 +150,7 @@
     const step = steps[index];
     setBar(`adım ${index + 1}/${steps.length} (${step.action})`);
 
-    const result = await executeStep(step);
-    await chrome.runtime.sendMessage({
-      type: 'STEP_RESULT',
-      result: { orderIndex: index, stepId: step.id ?? null, ...result },
-    });
+    const result = await executeStep(step, index); // sonuç executeStep içinde raporlanır
 
     if (result.status === 'failed') {
       // Kalan adımları skipped işaretle
