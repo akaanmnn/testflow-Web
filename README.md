@@ -111,3 +111,16 @@ placeholder, metin, CSS yolu) — self-healing koşum motorunun temelini oluştu
 
 **Şirket dağıtımı:** Eklenti, grup ilkesiyle (ExtensionInstallForcelist)
 zorunlu kurulabilir veya paketlenip iç mağazadan dağıtılabilir.
+
+## Koşum (Play)
+
+Senaryo detayında **▶ Koş** → ortam ve test veri seti seçilir → eklenti
+senaryoyu yeni sekmede oynatır:
+
+- Her adımda locator adayları skor sırasıyla denenir; ilk aday başarısız
+  olup bir sonraki tutarsa adım **healed** olarak işaretlenir (self-healing).
+- 📎 ile test verisine bağlı adımların değeri, seçilen veri setinden koşum
+  anında çözülür — gizli değerler (şifre vb.) senaryoya asla yazılmaz.
+- Ortam seçilirse başlangıç URL'inin origin'i ortamın baseUrl'i ile değiştirilir.
+- Koşum bitince sonuçlar otomatik olarak backend'e kaydedilir ve
+  **Koşumlar** sayfası açılır (adım bazlı durum + healed bilgisi).
