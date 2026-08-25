@@ -24,6 +24,12 @@ public class CommonDtos {
             String id, String stepId, int orderIndex, String status,
             boolean healed, String healedStrategy, String errorMessage, String screenshot) {}
 
+    /** Liste/dashboard için hafif özet — stepResults (ve görüntüler) taşımaz. */
+    public record RunSummaryDto(
+            String id, String scenarioId, String environmentId, String testDataSetId,
+            String status, String triggeredBy, Instant startedAt, Instant finishedAt,
+            Instant createdAt, int totalSteps, int failedSteps, int healedSteps) {}
+
     public record RunDto(
             String id, String scenarioId, String environmentId, String testDataSetId,
             String status, String triggeredBy, Instant startedAt, Instant finishedAt,

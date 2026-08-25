@@ -29,12 +29,18 @@ public class RunController {
     }
 
     @GetMapping
-    public List<RunDto> list(@RequestParam(required = false) String scenarioId, HttpServletRequest req) {
+    public List<RunSummaryDto> list(@RequestParam(required = false) String scenarioId, HttpServletRequest req) {
         AuthenticatedUser user = CurrentUser.from(req);
         List<Run> result = scenarioId != null
                 ? runs.findByWorkspaceIdAndScenarioIdOrderByCreatedAtDesc(user.workspaceId(), scenarioId)
                 : runs.findByWorkspaceIdOrderByCreatedAtDesc(user.workspaceId());
-        return result.stream().map(this::toDto).toList();
+        return result.stream().map(r -> new RunSummaryDto(
+                r.getId(), r.getScenarioId(), r.getEnvironmentId(), r.getTestDataSetId(),
+                r.getStatus(), r.getTriggeredBy(), r.getStartedAt(), r.getFinishedAt(), r.getCreatedAt(),
+                r.getStepResults().size(),
+                (int) r.getStepResults().stream().filter(s -> "failed".equals(s.getStatus())).count(),
+                (int) r.getStepResults().stream().filter(RunStepResult::isHealed).count()
+        )).toList();
     }
 
     @GetMapping("/{id}")

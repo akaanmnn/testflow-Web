@@ -10,8 +10,12 @@ export default function Runs() {
   const [error, setError] = useState('');
 
   const openDetail = async (run) => {
-    setDetail(run);
     setDetailSteps({});
+    try {
+      // Liste artık özet döner; adım sonuçları + görüntüler detay endpoint'inden
+      const full = await api(`/runs/${run.id}`);
+      setDetail(full);
+    } catch (err) { setError(err.message); return; }
     try {
       const s = await api(`/scenarios/${run.scenarioId}`);
       const map = {};

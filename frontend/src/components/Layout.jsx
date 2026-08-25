@@ -50,6 +50,7 @@ export default function Layout() {
           {user?.workspaceName}
         </div>
         <nav style={{ flex: 1 }}>
+          <NavLink to="/" end style={navStyle}>Genel Bakış</NavLink>
           <NavLink to="/scenarios" style={navStyle}>Senaryolar</NavLink>
           <NavLink to="/test-data" style={navStyle}>Test Verileri</NavLink>
           <NavLink to="/environments" style={navStyle}>Ortamlar</NavLink>

@@ -13,13 +13,25 @@ export default function Scenarios() {
   const [error, setError] = useState('');
   const [extension, setExtension] = useState(null); // null=bilinmiyor, false=yok, string=versiyon
   const [recording, setRecording] = useState(false);
+  const [selected, setSelected] = useState(new Set());
+  const [environments, setEnvironments] = useState([]);
+  const [dataSets, setDataSets] = useState([]);
+  const [batchEnv, setBatchEnv] = useState('');
+  const [batchDataSet, setBatchDataSet] = useState('');
+  const [showBatch, setShowBatch] = useState(false);
+  const [batch, setBatch] = useState(null); // { current, total, results: [{name, status}] }
   const navigate = useNavigate();
   const recordMeta = useRef({});
+  const runDoneResolver = useRef(null);
 
   const load = async () => {
-    const [s, f] = await Promise.all([api('/scenarios'), api('/folders')]);
+    const [s, f, e, d] = await Promise.all([
+      api('/scenarios'), api('/folders'), api('/environments'), api('/test-data-sets'),
+    ]);
     setScenarios(s);
     setFolders(f);
+    setEnvironments(e);
+    setDataSets(d);
   };
 
   useEffect(() => { load().catch((e) => setError(e.message)); }, []);
@@ -31,6 +43,11 @@ export default function Scenarios() {
 
       if (event.data.type === 'TESTFLOW_PONG') {
         setExtension(event.data.version);
+      }
+
+      if (event.data.type === 'TESTFLOW_RUN_DONE' && runDoneResolver.current) {
+        runDoneResolver.current(event.data);
+        runDoneResolver.current = null;
       }
 
       if (event.data.type === 'TESTFLOW_RECORDING_DONE') {
@@ -79,6 +96,84 @@ export default function Scenarios() {
     } catch (e) { setError(e.message); }
   };
 
+  const toggleSelect = (id) => {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  };
+
+  // Tek senaryoyu koş, RUN_DONE bekle, sonucu kaydet — durum döner
+  const runOne = async (scenarioId) => {
+    const scenario = await api(`/scenarios/${scenarioId}`);
+    if (!scenario.steps?.length) throw new Error('adım yok');
+
+    let byKey = {};
+    if (batchDataSet) {
+      const set = dataSets.find((d) => d.id === batchDataSet);
+      byKey = Object.fromEntries(JSON.parse(set.entries).map((en) => [en.key, en.value]));
+    }
+    const steps = scenario.steps.map((s) => {
+      if (!s.dataBinding) return s;
+      const key = JSON.parse(s.dataBinding).dataSetKey;
+      if (byKey[key] === undefined) throw new Error(`"${key}" anahtarı veri setinde yok`);
+      return { ...s, value: byKey[key] };
+    });
+
+    let startUrl = scenario.startUrl;
+    if (batchEnv) {
+      const env = environments.find((en) => en.id === batchEnv);
+      try {
+        const u = new URL(scenario.startUrl);
+        startUrl = new URL(env.baseUrl).origin + u.pathname + u.search + u.hash;
+      } catch { startUrl = env.baseUrl; }
+    }
+
+    const done = new Promise((resolve) => { runDoneResolver.current = resolve; });
+    window.postMessage({
+      type: 'TESTFLOW_START_RUN',
+      startUrl,
+      steps,
+      runContext: { scenarioId, environmentId: batchEnv || null, testDataSetId: batchDataSet || null },
+    }, '*');
+
+    const result = await done;
+    const results = result.results || [];
+    const status = result.aborted || results.some((r) => r.status === 'failed') ? 'failed' : 'passed';
+    await api('/runs', {
+      method: 'POST',
+      body: JSON.stringify({
+        scenarioId,
+        environmentId: batchEnv || null,
+        testDataSetId: batchDataSet || null,
+        status,
+        startedAt: result.startedAt,
+        finishedAt: result.finishedAt,
+        stepResults: results,
+      }),
+    });
+    return status;
+  };
+
+  const startBatch = async () => {
+    const ids = [...selected];
+    setShowBatch(false);
+    setBatch({ current: 0, total: ids.length, results: [] });
+    for (let i = 0; i < ids.length; i++) {
+      const name = scenarios.find((s) => s.id === ids[i])?.name ?? ids[i];
+      setBatch((b) => ({ ...b, current: i + 1 }));
+      let status;
+      try {
+        status = await runOne(ids[i]);
+      } catch (e) {
+        status = `atlandı (${e.message})`;
+      }
+      setBatch((b) => ({ ...b, results: [...b.results, { name, status }] }));
+    }
+    setSelected(new Set());
+  };
+
   const createFolder = async () => {
     if (!newFolderName.trim()) return;
     try {
@@ -114,6 +209,57 @@ export default function Scenarios() {
         <button className="ghost" onClick={createFolder}>Klasör Ekle</button>
       </div>
 
+      {selected.size > 0 && !batch && (
+        <div className="card" style={{ marginBottom: 16, padding: 14 }}>
+          {!showBatch ? (
+            <div className="row">
+              <span><b>{selected.size}</b> senaryo seçildi</span>
+              <button onClick={() => setShowBatch(true)} disabled={!extension}>▶ Toplu Koş</button>
+              <button className="ghost" onClick={() => setSelected(new Set())}>Seçimi Temizle</button>
+              {!extension && <span className="muted" style={{ fontSize: 12 }}>Koşum için eklenti gerekli.</span>}
+            </div>
+          ) : (
+            <div className="row">
+              <select value={batchEnv} onChange={(e) => setBatchEnv(e.target.value)} style={{ width: 220 }}>
+                <option value="">Ortam: kayıttaki URL</option>
+                {environments.map((en) => <option key={en.id} value={en.id}>{en.name}</option>)}
+              </select>
+              <select value={batchDataSet} onChange={(e) => setBatchDataSet(e.target.value)} style={{ width: 220 }}>
+                <option value="">Test verisi: yok</option>
+                {dataSets.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
+              </select>
+              <button onClick={startBatch}>{selected.size} Senaryoyu Koş</button>
+              <button className="ghost" onClick={() => setShowBatch(false)}>Vazgeç</button>
+            </div>
+          )}
+        </div>
+      )}
+
+      {batch && (
+        <div className="card" style={{ marginBottom: 16, padding: 14 }}>
+          <div className="row" style={{ justifyContent: 'space-between', marginBottom: batch.results.length ? 10 : 0 }}>
+            <span>
+              {batch.results.length < batch.total
+                ? <>▶ Toplu koşum: <b>{batch.current}/{batch.total}</b></>
+                : <>Toplu koşum tamamlandı — {batch.results.filter((r) => r.status === 'passed').length} passed,{' '}
+                    {batch.results.filter((r) => r.status !== 'passed').length} diğer</>}
+            </span>
+            {batch.results.length >= batch.total && (
+              <div className="row">
+                <button className="ghost" onClick={() => navigate('/runs')}>Koşumlara Git</button>
+                <button className="ghost" onClick={() => setBatch(null)}>Kapat</button>
+              </div>
+            )}
+          </div>
+          {batch.results.map((r, i) => (
+            <div key={i} className="row" style={{ fontSize: 13, marginBottom: 4 }}>
+              <span className={`badge ${r.status === 'passed' ? 'passed' : 'failed'}`}>{r.status}</span>
+              <span>{r.name}</span>
+            </div>
+          ))}
+        </div>
+      )}
+
       {showNew && (
         <div className="card" style={{ marginBottom: 16 }}>
           <div className="row" style={{ marginBottom: 12 }}>
@@ -147,11 +293,21 @@ export default function Scenarios() {
 
       <table>
         <thead>
-          <tr><th>Ad</th><th>Başlangıç URL</th><th>Adım</th><th>Güncelleme</th></tr>
+          <tr>
+            <th style={{ width: 36 }}>
+              <input type="checkbox"
+                     checked={visible.length > 0 && visible.every((s) => selected.has(s.id))}
+                     onChange={(e) => setSelected(e.target.checked ? new Set(visible.map((s) => s.id)) : new Set())} />
+            </th>
+            <th>Ad</th><th>Başlangıç URL</th><th>Adım</th><th>Güncelleme</th>
+          </tr>
         </thead>
         <tbody>
           {visible.map((s) => (
             <tr key={s.id}>
+              <td>
+                <input type="checkbox" checked={selected.has(s.id)} onChange={() => toggleSelect(s.id)} />
+              </td>
               <td><Link to={`/scenarios/${s.id}`} style={{ color: 'var(--accent)' }}>{s.name}</Link></td>
               <td className="muted">{s.startUrl}</td>
               <td>{s.stepCount}</td>
@@ -159,7 +315,7 @@ export default function Scenarios() {
             </tr>
           ))}
           {visible.length === 0 && (
-            <tr><td colSpan={4} className="muted" style={{ textAlign: 'center', padding: 30 }}>
+            <tr><td colSpan={5} className="muted" style={{ textAlign: 'center', padding: 30 }}>
               Henüz senaryo yok.
             </td></tr>
           )}
