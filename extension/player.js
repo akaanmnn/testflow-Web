@@ -34,11 +34,16 @@
         case 'aria-label': return document.querySelector(`[aria-label="${CSS.escape(c.value)}"]`);
         case 'placeholder': return document.querySelector(`[placeholder="${CSS.escape(c.value)}"]`);
         case 'text': {
-          const nodes = document.querySelectorAll('button, a, label, span, div, [role="button"]');
-          for (const n of nodes) {
-            if ((n.innerText || '').trim().slice(0, 60) === c.value) return n;
-          }
-          return null;
+          const nodes = [...document.querySelectorAll('button, a, label, span, div, [role="button"]')]
+            .filter((n) => (n.innerText || '').trim().slice(0, 60) === c.value);
+          if (nodes.length === 0) return null;
+          // Öncelik: gerçekten tıklanabilir olanlar (button/a/role=button)
+          const clickable = nodes.filter((n) =>
+            ['BUTTON', 'A'].includes(n.tagName) || n.getAttribute('role') === 'button');
+          const pool = clickable.length ? clickable : nodes;
+          // En derin eşleşme: içinde başka eşleşme barındırmayan
+          // (butonu saran div yerine butonun kendisi seçilir)
+          return pool.find((n) => !pool.some((m) => m !== n && n.contains(m))) || pool[0];
         }
         case 'css': return document.querySelector(c.value);
         default: return null;
@@ -91,6 +96,21 @@
 
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
+  // Gerçek kullanıcı tıklamasını taklit eder: bazı siteler click yerine
+  // pointer/mouse olaylarını dinler, salt el.click() onlarda işe yaramaz.
+  function realisticClick(el) {
+    const rect = el.getBoundingClientRect();
+    const x = rect.left + rect.width / 2;
+    const y = rect.top + rect.height / 2;
+    const opts = { bubbles: true, cancelable: true, view: window, clientX: x, clientY: y, button: 0 };
+    try { el.dispatchEvent(new PointerEvent('pointerdown', { ...opts, pointerId: 1, isPrimary: true })); } catch {}
+    el.dispatchEvent(new MouseEvent('mousedown', opts));
+    try { el.focus(); } catch {}
+    try { el.dispatchEvent(new PointerEvent('pointerup', { ...opts, pointerId: 1, isPrimary: true })); } catch {}
+    el.dispatchEvent(new MouseEvent('mouseup', opts));
+    el.dispatchEvent(new MouseEvent('click', opts));
+  }
+
   function setNativeValue(el, value) {
     // React/Vue kontrollü inputlar için native setter kullan
     const proto = el.tagName === 'TEXTAREA'
@@ -134,7 +154,7 @@
         // adım tekrar aranıp yanlış fail üretirdi.
         const r = { status: 'passed', healed, healedStrategy };
         await reportResult(stepIndex, step, r);
-        found.el.click();
+        realisticClick(found.el);
         return r;
       } else if (step.action === 'fill') {
         if (step.value === '***' || step.value == null) {
