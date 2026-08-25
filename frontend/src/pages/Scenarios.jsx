@@ -96,7 +96,12 @@ export default function Scenarios() {
     <div>
       <div className="row" style={{ justifyContent: 'space-between', marginBottom: 16 }}>
         <h1 className="page-title" style={{ margin: 0 }}>Senaryolar</h1>
-        <button onClick={() => setShowNew(!showNew)}>+ Yeni Senaryo</button>
+        <div className="row">
+          {typeof extension === 'string' && (
+            <span className="muted" style={{ fontSize: 12 }}>Eklenti v{extension}</span>
+          )}
+          <button onClick={() => setShowNew(!showNew)}>+ Yeni Senaryo</button>
+        </div>
       </div>
 
       <div className="row" style={{ marginBottom: 16 }}>
