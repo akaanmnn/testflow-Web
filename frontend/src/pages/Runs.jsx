@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { api } from '../lib/api';
 
 export default function Runs() {
@@ -47,6 +47,91 @@ export default function Runs() {
 
   const scenarioName = (id) => scenarios.find((s) => s.id === id)?.name ?? id;
 
+  const [rerunning, setRerunning] = useState(null); // koşulan run id
+  const rerunCtx = useRef(null);
+
+  // Eklentiden koşum sonucu geldiğinde kaydet
+  useEffect(() => {
+    const onMessage = async (event) => {
+      if (event.source !== window || event.data?.type !== 'TESTFLOW_RUN_DONE') return;
+      if (!rerunCtx.current) return; // bu sayfadan başlatılan bir koşum değil
+      const ctx = rerunCtx.current;
+      rerunCtx.current = null;
+      setRerunning(null);
+
+      const results = event.data.results || [];
+      const anyFailed = results.some((r) => r.status === 'failed');
+      try {
+        await api('/runs', {
+          method: 'POST',
+          body: JSON.stringify({
+            scenarioId: ctx.scenarioId,
+            environmentId: ctx.environmentId,
+            testDataSetId: ctx.testDataSetId,
+            status: event.data.aborted ? 'failed' : (anyFailed ? 'failed' : 'passed'),
+            startedAt: event.data.startedAt,
+            finishedAt: event.data.finishedAt,
+            stepResults: results,
+          }),
+        });
+        await load();
+      } catch (err) { setError(err.message); }
+    };
+    window.addEventListener('message', onMessage);
+    return () => window.removeEventListener('message', onMessage);
+  }, []);
+
+  // Koşumu aynı ortam + test verisiyle yeniden başlat
+  const rerun = async (e, run) => {
+    e.stopPropagation();
+    setError('');
+    try {
+      const scenario = await api(`/scenarios/${run.scenarioId}`);
+      if (!scenario.steps?.length) throw new Error('Senaryoda adım yok.');
+
+      // Test verisi çözümü
+      let byKey = {};
+      if (run.testDataSetId) {
+        const set = await api(`/test-data-sets/${run.testDataSetId}`);
+        byKey = Object.fromEntries(JSON.parse(set.entries).map((en) => [en.key, en.value]));
+      }
+      const steps = scenario.steps.map((s) => {
+        if (!s.dataBinding) return s;
+        const key = JSON.parse(s.dataBinding).dataSetKey;
+        if (byKey[key] === undefined) {
+          throw new Error(`"${key}" anahtarı koşumun test veri setinde yok — set silinmiş/değişmiş olabilir. Senaryo sayfasından koşun.`);
+        }
+        return { ...s, value: byKey[key] };
+      });
+
+      // Ortam çözümü
+      let startUrl = scenario.startUrl;
+      if (run.environmentId) {
+        const envs = await api('/environments');
+        const env = envs.find((en) => en.id === run.environmentId);
+        if (env) {
+          try {
+            const u = new URL(scenario.startUrl);
+            startUrl = new URL(env.baseUrl).origin + u.pathname + u.search + u.hash;
+          } catch { startUrl = env.baseUrl; }
+        }
+      }
+
+      rerunCtx.current = {
+        scenarioId: run.scenarioId,
+        environmentId: run.environmentId || null,
+        testDataSetId: run.testDataSetId || null,
+      };
+      setRerunning(run.id);
+      window.postMessage({
+        type: 'TESTFLOW_START_RUN',
+        startUrl,
+        steps,
+        runContext: rerunCtx.current,
+      }, '*');
+    } catch (err) { setError(err.message); }
+  };
+
   const deleteRun = async (e, id) => {
     e.stopPropagation(); // satır tıklamasını (detay açma) tetikleme
     if (!window.confirm('Bu koşum kaydı silinsin mi?')) return;
@@ -75,7 +160,13 @@ export default function Runs() {
                 <td>{r.triggeredBy}</td>
                 <td className="muted">{r.startedAt ? new Date(r.startedAt).toLocaleString('tr-TR') : '—'}</td>
                 <td className="muted">{durationSec != null ? `${durationSec}sn` : '—'}</td>
-                <td style={{ textAlign: 'right' }}>
+                <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
+                  {r.status !== 'passed' && (
+                    <button className="ghost" onClick={(e) => rerun(e, r)}
+                            disabled={rerunning !== null} style={{ marginRight: 6 }}>
+                      {rerunning === r.id ? '▶ Koşuyor…' : '↻ Tekrar Koş'}
+                    </button>
+                  )}
                   <button className="danger" onClick={(e) => deleteRun(e, r.id)}>Sil</button>
                 </td>
               </tr>
