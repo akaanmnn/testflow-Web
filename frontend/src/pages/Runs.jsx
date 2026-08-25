@@ -7,20 +7,31 @@ export default function Runs() {
   const [detail, setDetail] = useState(null);
   const [error, setError] = useState('');
 
-  useEffect(() => {
+  const load = () =>
     Promise.all([api('/runs'), api('/scenarios')])
       .then(([r, s]) => { setRuns(r); setScenarios(s); })
       .catch((e) => setError(e.message));
-  }, []);
+
+  useEffect(() => { load(); }, []);
 
   const scenarioName = (id) => scenarios.find((s) => s.id === id)?.name ?? id;
+
+  const deleteRun = async (e, id) => {
+    e.stopPropagation(); // satır tıklamasını (detay açma) tetikleme
+    if (!window.confirm('Bu koşum kaydı silinsin mi?')) return;
+    try {
+      await api(`/runs/${id}`, { method: 'DELETE' });
+      if (detail?.id === id) setDetail(null);
+      await load();
+    } catch (err) { setError(err.message); }
+  };
 
   return (
     <div>
       <h1 className="page-title">Koşum Geçmişi</h1>
       <table>
         <thead>
-          <tr><th>Senaryo</th><th>Durum</th><th>Başlatan</th><th>Başlangıç</th><th>Süre</th></tr>
+          <tr><th>Senaryo</th><th>Durum</th><th>Başlatan</th><th>Başlangıç</th><th>Süre</th><th></th></tr>
         </thead>
         <tbody>
           {runs.map((r) => {
@@ -33,11 +44,14 @@ export default function Runs() {
                 <td>{r.triggeredBy}</td>
                 <td className="muted">{r.startedAt ? new Date(r.startedAt).toLocaleString('tr-TR') : '—'}</td>
                 <td className="muted">{durationSec != null ? `${durationSec}sn` : '—'}</td>
+                <td style={{ textAlign: 'right' }}>
+                  <button className="danger" onClick={(e) => deleteRun(e, r.id)}>Sil</button>
+                </td>
               </tr>
             );
           })}
           {runs.length === 0 && (
-            <tr><td colSpan={5} className="muted" style={{ textAlign: 'center', padding: 30 }}>Henüz koşum yok.</td></tr>
+            <tr><td colSpan={6} className="muted" style={{ textAlign: 'center', padding: 30 }}>Henüz koşum yok.</td></tr>
           )}
         </tbody>
       </table>

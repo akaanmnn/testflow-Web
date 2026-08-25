@@ -64,10 +64,31 @@
 
   // ---------- Olay dinleyicileri ----------
 
+  let assertMode = false;
+
   // Tıklama (capture fazında — preventDefault yapan sitelerde de yakalar)
   document.addEventListener('click', (e) => {
-    const el = e.target.closest('button, a, input, select, [role="button"], label') || e.target;
-    if (barEl.contains(el)) return; // kendi çubuğumuzu kaydetme
+    const rawTarget = e.target;
+    if (barEl.contains(rawTarget)) return; // kendi çubuğumuzu kaydetme
+
+    // ---- Doğrulama modu: tıklanan eleman için assert adımı ekle ----
+    if (assertMode) {
+      e.preventDefault();
+      e.stopPropagation();
+      const el = rawTarget;
+      const text = (el.innerText || el.value || '').trim().slice(0, 80);
+      sendStep({
+        action: text ? 'assert-text' : 'assert-visible',
+        candidates: JSON.stringify(buildCandidates(el)),
+        value: text || null,
+        sensitive: false,
+        meta: JSON.stringify({ tag: el.tagName.toLowerCase(), url: location.href, assertion: true }),
+      });
+      exitAssertMode();
+      return;
+    }
+
+    const el = rawTarget.closest('button, a, input, select, [role="button"], label') || rawTarget;
     sendStep({
       action: 'click',
       candidates: JSON.stringify(buildCandidates(el)),
@@ -76,6 +97,22 @@
       meta: JSON.stringify({ tag: el.tagName.toLowerCase(), url: location.href }),
     });
   }, true);
+
+  // Doğrulama modunda üzerine gelinen elemanı vurgula
+  let hoverEl = null;
+  document.addEventListener('mouseover', (e) => {
+    if (!assertMode || barEl.contains(e.target)) return;
+    if (hoverEl) hoverEl.style.outline = hoverEl.__tfOldOutline || '';
+    hoverEl = e.target;
+    hoverEl.__tfOldOutline = hoverEl.style.outline;
+    hoverEl.style.outline = '3px solid #34c98e';
+  }, true);
+
+  function exitAssertMode() {
+    assertMode = false;
+    if (hoverEl) { hoverEl.style.outline = hoverEl.__tfOldOutline || ''; hoverEl = null; }
+    updateAssertButton();
+  }
 
   // Input değerleri — yazma bitince (change) kaydet, her tuşta değil.
   // Aynı elemana üst üste change gelirse önceki adımın üzerine yazılır (tekilleştirme).
@@ -113,6 +150,7 @@
   barEl.innerHTML = `
     <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#f0556a;animation:__tf_pulse 1.2s infinite"></span>
     <span>TestFlow kaydediyor — <b id="__tf_count">0</b> adım</span>
+    <button id="__tf_assert" style="background:#34c98e;color:#fff;border:none;border-radius:6px;padding:6px 12px;cursor:pointer;font:13px system-ui">✓ Doğrula</button>
     <button id="__tf_stop" style="background:#4f7cff;color:#fff;border:none;border-radius:6px;padding:6px 12px;cursor:pointer;font:13px system-ui">Kaydı Bitir</button>
   `;
   const style = document.createElement('style');
@@ -124,6 +162,20 @@
     const el = document.getElementById('__tf_count');
     if (el) el.textContent = String(stepCount);
   }
+
+  function updateAssertButton() {
+    const btn = document.getElementById('__tf_assert');
+    if (!btn) return;
+    btn.textContent = assertMode ? 'Vazgeç' : '✓ Doğrula';
+    btn.style.background = assertMode ? '#e8b93e' : '#34c98e';
+  }
+
+  document.getElementById('__tf_assert').addEventListener('click', (e) => {
+    e.stopPropagation();
+    if (assertMode) { exitAssertMode(); return; }
+    assertMode = true;
+    updateAssertButton();
+  });
 
   document.getElementById('__tf_stop').addEventListener('click', async (e) => {
     e.stopPropagation();

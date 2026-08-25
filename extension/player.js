@@ -133,6 +133,23 @@
         const r = { status: 'passed', healed, healedStrategy };
         await reportResult(stepIndex, step, r);
         return r;
+      } else if (step.action === 'assert-visible') {
+        // Element bulunduysa (findElement görünürlük kontrolü yapıyor) geçer
+        const r = { status: 'passed', healed, healedStrategy };
+        await reportResult(stepIndex, step, r);
+        return r;
+      } else if (step.action === 'assert-text') {
+        const actual = (found.el.innerText || found.el.value || '').trim();
+        const expected = (step.value || '').trim();
+        if (expected && actual.includes(expected)) {
+          const r = { status: 'passed', healed, healedStrategy };
+          await reportResult(stepIndex, step, r);
+          return r;
+        }
+        const r = { status: 'failed', healed, healedStrategy,
+                 errorMessage: `Metin doğrulaması başarısız — beklenen: "${expected.slice(0,80)}", bulunan: "${actual.slice(0,80)}"` };
+        await reportResult(stepIndex, step, r);
+        return r;
       } else {
         const r = { status: 'skipped', healed: false, errorMessage: `Desteklenmeyen aksiyon: ${step.action}` };
         await reportResult(stepIndex, step, r);

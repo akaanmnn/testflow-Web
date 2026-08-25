@@ -81,6 +81,25 @@ public class RunController {
         return toDto(runs.save(run));
     }
 
+    @DeleteMapping("/{id}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void delete(@PathVariable String id, HttpServletRequest req) {
+        AuthenticatedUser user = CurrentUser.from(req);
+        Run run = runs.findByIdAndWorkspaceId(id, user.workspaceId())
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Koşum bulunamadı."));
+        runs.delete(run);
+    }
+
+    /** Bir senaryonun tüm koşum geçmişini siler (scenarioId zorunlu). */
+    @DeleteMapping
+    @Transactional
+    public java.util.Map<String, Integer> deleteAll(@RequestParam String scenarioId, HttpServletRequest req) {
+        AuthenticatedUser user = CurrentUser.from(req);
+        List<Run> toDelete = runs.findByWorkspaceIdAndScenarioIdOrderByCreatedAtDesc(user.workspaceId(), scenarioId);
+        runs.deleteAll(toDelete);
+        return java.util.Map.of("deleted", toDelete.size());
+    }
+
     private RunDto toDto(Run r) {
         return new RunDto(
                 r.getId(), r.getScenarioId(), r.getEnvironmentId(), r.getTestDataSetId(),
