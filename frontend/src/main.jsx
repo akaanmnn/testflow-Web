@@ -1,0 +1,34 @@
+import React from 'react';
+import ReactDOM from 'react-dom/client';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import Login from './pages/Login';
+import Layout from './components/Layout';
+import Scenarios from './pages/Scenarios';
+import ScenarioDetail from './pages/ScenarioDetail';
+import TestData from './pages/TestData';
+import Environments from './pages/Environments';
+import Runs from './pages/Runs';
+import { getToken } from './lib/api';
+import './styles.css';
+
+function Protected({ children }) {
+  return getToken() ? children : <Navigate to="/login" replace />;
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(
+  <React.StrictMode>
+    <BrowserRouter>
+      <Routes>
+        <Route path="/login" element={<Login />} />
+        <Route path="/" element={<Protected><Layout /></Protected>}>
+          <Route index element={<Navigate to="/scenarios" replace />} />
+          <Route path="scenarios" element={<Scenarios />} />
+          <Route path="scenarios/:id" element={<ScenarioDetail />} />
+          <Route path="test-data" element={<TestData />} />
+          <Route path="environments" element={<Environments />} />
+          <Route path="runs" element={<Runs />} />
+        </Route>
+      </Routes>
+    </BrowserRouter>
+  </React.StrictMode>
+);

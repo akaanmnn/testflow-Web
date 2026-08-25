@@ -1,0 +1,92 @@
+# TestFlow Web
+
+Kod bilmeyen QA ekipleri için web tabanlı test otomasyon platformu.
+LDAP (Active Directory) ile giriş, AD grup bazlı workspace izolasyonu.
+
+> Masaüstü (Electron) sürüm için: [testflow](https://github.com/akaanmnn/testflow)
+
+## Mimari
+
+```
+backend/    Spring Boot 3 (Java 21) + H2 in-memory + Spring Security LDAP + JWT
+frontend/   React 18 + Vite
+```
+
+- **Auth:** AD kullanıcı adı + şifre → LDAP bind → JWT
+- **Workspace:** Kullanıcının AD grubu = workspace. Farklı gruplar birbirinin
+  verisini göremez. Grup için workspace yoksa ilk girişte otomatik oluşur.
+- **Veritabanı:** H2 in-memory (`create-drop`) — kurulum gerektirmez, her
+  restart temiz başlar. Kalıcılık gerekince `application.properties` içinden
+  dosya tabanlı H2 veya PostgreSQL'e geçilebilir.
+- **Mock LDAP:** Embedded UnboundID sunucusu `mock-ldap.ldif` içeriğiyle
+  otomatik ayağa kalkar. Gerçek AD'ye geçiş için sadece `spring.ldap.*`
+  ayarları değişir (aşağıya bakın).
+
+## Gereksinimler
+
+- Java 21+
+- Maven 3.9+
+- Node.js 20+
+
+## Çalıştırma
+
+```bash
+# Terminal 1 — backend (http://localhost:8080)
+cd backend
+mvn spring-boot:run
+
+# Terminal 2 — frontend (http://localhost:5173)
+cd frontend
+npm install
+npm run dev
+```
+
+## Demo kullanıcıları (mock LDAP)
+
+| Kullanıcı | Şifre | AD Grubu (=workspace) |
+|---|---|---|
+| ahmet.yilmaz | test123 | QA-Team |
+| fatma.kaya | test123 | QA-Team |
+| mehmet.celik | test123 | Backend-QA |
+| zeynep.arslan | test123 | Backend-QA |
+
+ahmet & fatma aynı workspace'i paylaşır; mehmet & zeynep farklı workspace'tedir
+ve birbirlerinin senaryolarını göremezler — izolasyon demosu için ideal.
+
+## Özellikler
+
+- Senaryo CRUD + adım editörü (sıralama, taşıma, silme)
+- **Test verisi bağlama:** adım değeri sabit yazılabilir veya test veri
+  setindeki bir anahtara bağlanabilir (📎). Gizli alanlar maskelenir.
+- Klasörler, ortamlar (environment), test veri setleri
+- Koşum geçmişi + adım bazlı sonuçlar (healed bilgisiyle)
+- H2 console: http://localhost:8080/h2-console (JDBC URL: `jdbc:h2:mem:testflowdb`, user: `sa`)
+
+## Gerçek Active Directory'ye geçiş
+
+`backend/src/main/resources/application.properties` içinde:
+
+```properties
+# Embedded LDAP satırlarını (spring.ldap.embedded.*) silin/yoruma alın
+
+spring.ldap.urls=ldap://ad.sirket.local:389
+spring.ldap.base=dc=sirket,dc=local
+spring.ldap.username=cn=svc-testflow,ou=ServiceAccounts,dc=sirket,dc=local
+spring.ldap.password=${AD_BIND_PASSWORD}
+```
+
+AD şemasında kullanıcı `sAMAccountName` ve grup üyeliği `memberOf` ile
+sorgulanır; `LdapAuthService` içindeki filtreleri buna göre güncelleyin
+(kodda TODO yorumlarıyla işaretli).
+
+## API özeti
+
+| Endpoint | Açıklama |
+|---|---|
+| `POST /api/auth/login` | LDAP giriş → JWT |
+| `GET/POST/PATCH/DELETE /api/scenarios` | Senaryo CRUD |
+| `GET/POST/DELETE /api/folders` | Klasörler |
+| `GET/POST/PATCH/DELETE /api/test-data-sets` | Test veri setleri |
+| `GET/POST/DELETE /api/environments` | Ortamlar |
+| `GET/POST /api/runs` | Koşum kaydı + geçmiş |
+| `GET /api/health` | Sağlık kontrolü |

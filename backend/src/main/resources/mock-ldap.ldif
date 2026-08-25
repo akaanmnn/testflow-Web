@@ -1,0 +1,76 @@
+# Root
+dn: dc=testflow,dc=com
+objectClass: top
+objectClass: domain
+dc: testflow
+
+# Admin kullanıcı (bind için)
+dn: cn=admin,dc=testflow,dc=com
+objectClass: simpleSecurityObject
+objectClass: organizationalRole
+cn: admin
+userPassword: admin
+
+# Kullanıcılar OU
+dn: ou=users,dc=testflow,dc=com
+objectClass: top
+objectClass: organizationalUnit
+ou: users
+
+# Gruplar OU
+dn: ou=groups,dc=testflow,dc=com
+objectClass: top
+objectClass: organizationalUnit
+ou: groups
+
+# --- KULLANICILAR ---
+
+dn: uid=ahmet.yilmaz,ou=users,dc=testflow,dc=com
+objectClass: inetOrgPerson
+objectClass: person
+uid: ahmet.yilmaz
+cn: Ahmet Yılmaz
+sn: Yılmaz
+mail: ahmet.yilmaz@sirket.com
+userPassword: test123
+
+dn: uid=fatma.kaya,ou=users,dc=testflow,dc=com
+objectClass: inetOrgPerson
+objectClass: person
+uid: fatma.kaya
+cn: Fatma Kaya
+sn: Kaya
+mail: fatma.kaya@sirket.com
+userPassword: test123
+
+dn: uid=mehmet.celik,ou=users,dc=testflow,dc=com
+objectClass: inetOrgPerson
+objectClass: person
+uid: mehmet.celik
+cn: Mehmet Çelik
+sn: Çelik
+mail: mehmet.celik@sirket.com
+userPassword: test123
+
+dn: uid=zeynep.arslan,ou=users,dc=testflow,dc=com
+objectClass: inetOrgPerson
+objectClass: person
+uid: zeynep.arslan
+cn: Zeynep Arslan
+sn: Arslan
+mail: zeynep.arslan@sirket.com
+userPassword: test123
+
+# --- GRUPLAR (AD grup = Workspace) ---
+
+dn: cn=QA-Team,ou=groups,dc=testflow,dc=com
+objectClass: groupOfNames
+cn: QA-Team
+member: uid=ahmet.yilmaz,ou=users,dc=testflow,dc=com
+member: uid=fatma.kaya,ou=users,dc=testflow,dc=com
+
+dn: cn=Backend-QA,ou=groups,dc=testflow,dc=com
+objectClass: groupOfNames
+cn: Backend-QA
+member: uid=mehmet.celik,ou=users,dc=testflow,dc=com
+member: uid=zeynep.arslan,ou=users,dc=testflow,dc=com
