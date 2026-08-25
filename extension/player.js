@@ -52,20 +52,41 @@
     return r.width > 0 && r.height > 0;
   }
 
-  // Adayları skorla dener; 5sn boyunca 250ms'de bir yeniden dener (sayfa yükleniyor olabilir)
-  async function findElement(candidates) {
+  // Adayları skorla dener; 5sn boyunca 250ms'de bir yeniden dener (sayfa yükleniyor olabilir).
+  // validate: bulunan elemanın adım için uygunluğunu doğrular (yanlış elemana
+  // "iyileşme" adı altında işlem yapılmasını engeller).
+  async function findElement(candidates, validate) {
     const sorted = [...candidates].sort((a, b) => (b.score ?? 0) - (a.score ?? 0));
     const deadline = Date.now() + 5000;
     while (Date.now() < deadline) {
       for (let i = 0; i < sorted.length; i++) {
         const el = findByCandidate(sorted[i]);
-        if (isVisible(el)) {
+        if (isVisible(el) && (!validate || validate(el))) {
           return { el, usedIndex: i, strategy: sorted[i].strategy };
         }
       }
       await sleep(250);
     }
     return null;
+  }
+
+  // Adım türüne göre eleman doğrulayıcı üret
+  function validatorFor(step) {
+    let meta = {};
+    try { meta = JSON.parse(step.meta || '{}'); } catch {}
+    if (step.action === 'fill') {
+      return (el) => {
+        if (!['INPUT', 'TEXTAREA'].includes(el.tagName)) return false;
+        // Kayıtta input türü biliniyorsa koşumda da aynı olmalı
+        // (password adımı asla text alana yazamaz, tersi de geçerli)
+        if (meta.inputType && el.tagName === 'INPUT' && el.type !== meta.inputType) return false;
+        return true;
+      };
+    }
+    if (step.action === 'select') {
+      return (el) => el.tagName === 'SELECT';
+    }
+    return null; // click/assert: tür kısıtı yok
   }
 
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -95,9 +116,9 @@
 
   async function executeStep(step, stepIndex) {
     const candidates = JSON.parse(step.candidates || '[]');
-    const found = await findElement(candidates);
+    const found = await findElement(candidates, validatorFor(step));
     if (!found) {
-      const r = { status: 'failed', healed: false, errorMessage: 'Element bulunamadı (tüm locator adayları denendi).' };
+      const r = { status: 'failed', healed: false, errorMessage: 'Element bulunamadı (tüm locator adayları denendi; tür uyumsuz eşleşmeler reddedildi).' };
       await reportResult(stepIndex, step, r);
       return r;
     }
