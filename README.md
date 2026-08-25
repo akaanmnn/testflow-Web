@@ -8,7 +8,7 @@ LDAP (Active Directory) ile giriş, AD grup bazlı workspace izolasyonu.
 ## Mimari
 
 ```
-backend/    Spring Boot 3 (Java 21) + H2 in-memory + Spring Security LDAP + JWT
+backend/    Spring Boot 3 (Java 17+) + H2 in-memory + Spring Security LDAP + JWT
 frontend/   React 18 + Vite
 ```
 
@@ -24,7 +24,7 @@ frontend/   React 18 + Vite
 
 ## Gereksinimler
 
-- Java 21+
+- Java 17+
 - Maven 3.9+
 - Node.js 20+
 
