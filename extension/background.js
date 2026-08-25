@@ -40,7 +40,13 @@ async function handle(msg, sender) {
   if (msg.type === 'STEP') {
     const s = await getSession();
     if (!s || s.mode !== 'record' || !sender.tab || sender.tab.id !== s.tabId) return { ok: false };
-    s.steps.push(msg.step);
+    const { replacePrev, ...step } = msg.step;
+    if (replacePrev && s.steps.length > 0 &&
+        ['fill', 'select'].includes(s.steps[s.steps.length - 1].action)) {
+      s.steps[s.steps.length - 1] = step; // aynı alana ardışık yazım → üzerine yaz
+    } else {
+      s.steps.push(step);
+    }
     await setSession(s);
     return { ok: true, count: s.steps.length };
   }

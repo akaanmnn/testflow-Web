@@ -77,19 +77,28 @@
     });
   }, true);
 
-  // Input değerleri — yazma bitince (change) kaydet, her tuşta değil
+  // Input değerleri — yazma bitince (change) kaydet, her tuşta değil.
+  // Aynı elemana üst üste change gelirse önceki adımın üzerine yazılır (tekilleştirme).
+  let lastFillKey = null;
   document.addEventListener('change', (e) => {
     const el = e.target;
     if (!['INPUT', 'TEXTAREA', 'SELECT'].includes(el.tagName)) return;
     const sensitive = isSensitive(el);
+    const fillKey = el.id || el.name || cssPath(el);
+    const replacePrev = fillKey && fillKey === lastFillKey;
+    lastFillKey = fillKey;
     sendStep({
       action: el.tagName === 'SELECT' ? 'select' : 'fill',
       candidates: JSON.stringify(buildCandidates(el)),
       value: sensitive ? '***' : el.value,
       sensitive,
       meta: JSON.stringify({ tag: el.tagName.toLowerCase(), inputType: el.type || null, url: location.href }),
+      replacePrev,
     });
   }, true);
+
+  // Tıklama olunca fill zinciri kırılır (araya tıklama girdiyse yeni fill ayrı adımdır)
+  document.addEventListener('click', () => { lastFillKey = null; }, true);
 
   // ---------- Kayıt çubuğu ----------
   const barEl = document.createElement('div');

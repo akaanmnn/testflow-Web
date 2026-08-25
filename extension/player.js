@@ -101,8 +101,9 @@
         found.el.click();
       } else if (step.action === 'fill') {
         if (step.value === '***' || step.value == null) {
+          const first = candidates[0] ? `${candidates[0].strategy}=${candidates[0].value}` : 'bilinmiyor';
           return { status: 'failed', healed, healedStrategy,
-                   errorMessage: 'Gizli/boş değer — bu adımı bir test verisi anahtarına bağlayın.' };
+                   errorMessage: `Gizli/boş değer (eleman: ${first}) — senaryoda bu adımı 📎 ile bir test verisi anahtarına bağlayıp Kaydet'e basın. Not: aynı alan için birden fazla fill adımı oluşmuş olabilir, fazlasını silin.` };
         }
         found.el.focus();
         setNativeValue(found.el, step.value);
