@@ -53,6 +53,31 @@ export default function ScenarioDetail() {
             stepResults: results,
           }),
         });
+
+        // İyileşmeyi kalıcılaştır: healed adımlarda çalışan stratejinin
+        // skorunu yükselt ki sonraki koşumda ilk denemede bulunsun.
+        const healedResults = results.filter((r) => r.healed && r.healedStrategy);
+        if (healedResults.length > 0) {
+          const patchedSteps = steps.map((s) => {
+            const hr = healedResults.find(
+              (r) => (r.stepId && r.stepId === s.id) || r.orderIndex === s.orderIndex,
+            );
+            if (!hr) return s;
+            try {
+              const cands = JSON.parse(s.candidates || '[]');
+              const maxScore = Math.max(...cands.map((c) => c.score ?? 0), 0);
+              const updated = cands.map((c) =>
+                c.strategy === hr.healedStrategy ? { ...c, score: maxScore + 0.05 } : c,
+              );
+              return { ...s, candidates: JSON.stringify(updated) };
+            } catch { return s; }
+          });
+          await api(`/scenarios/${id}`, {
+            method: 'PATCH',
+            body: JSON.stringify({ steps: patchedSteps }),
+          });
+        }
+
         runCtx.current = null;
         navigate('/runs');
       } catch (e) {
@@ -61,7 +86,7 @@ export default function ScenarioDetail() {
     };
     window.addEventListener('message', onMessage);
     return () => window.removeEventListener('message', onMessage);
-  }, [id, navigate]);
+  }, [id, navigate, steps, dataSets]);
 
   const allKeys = [...new Set(dataSets.flatMap((ds) => {
     try { return JSON.parse(ds.entries).map((e) => e.key); } catch { return []; }
