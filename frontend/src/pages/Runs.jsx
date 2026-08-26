@@ -97,15 +97,16 @@ export default function Runs() {
       let byKey = {};
       if (run.testDataSetId) {
         const set = await api(`/test-data-sets/${run.testDataSetId}`);
-        byKey = Object.fromEntries(JSON.parse(set.entries).map((en) => [en.key, en.value]));
+        byKey = Object.fromEntries(JSON.parse(set.entries).map((en) => [en.key, en]));
       }
       const steps = scenario.steps.map((s) => {
         if (!s.dataBinding) return s;
         const key = JSON.parse(s.dataBinding).dataSetKey;
-        if (byKey[key] === undefined) {
+        const entry = byKey[key];
+        if (entry === undefined) {
           throw new Error(`"${key}" anahtarı koşumun test veri setinde yok — set silinmiş/değişmiş olabilir. Senaryo sayfasından koşun.`);
         }
-        return { ...s, value: byKey[key] };
+        return { ...s, value: entry.value, ...(entry.type === 'file' ? { fileName: entry.fileName } : {}) };
       });
 
       // Ortam çözümü

@@ -79,10 +79,42 @@ export default function TestData() {
           {entries.map((e, i) => (
             <div key={i} className="row" style={{ marginBottom: 8 }}>
               <input placeholder="anahtar (örn. kullanici_email)" value={e.key}
-                     onChange={(ev) => updateEntry(i, { key: ev.target.value })} style={{ width: 220 }} />
-              <input placeholder="değer" value={e.value}
-                     type={e.sensitive ? 'password' : 'text'}
-                     onChange={(ev) => updateEntry(i, { value: ev.target.value })} style={{ flex: 1 }} />
+                     onChange={(ev) => updateEntry(i, { key: ev.target.value })} style={{ width: 190 }} />
+              <select value={e.type || 'text'}
+                      onChange={(ev) => updateEntry(i, { type: ev.target.value, value: '', fileName: undefined })}
+                      style={{ width: 90 }}>
+                <option value="text">metin</option>
+                <option value="file">dosya</option>
+              </select>
+              {(e.type || 'text') === 'file' ? (
+                <div className="row" style={{ flex: 1 }}>
+                  <label className="ghost" style={{
+                    border: '1px solid var(--border)', borderRadius: 9, padding: '7px 12px',
+                    cursor: 'pointer', fontSize: 13,
+                  }}>
+                    Dosya Seç
+                    <input type="file" style={{ display: 'none' }}
+                           onChange={(ev) => {
+                             const f = ev.target.files[0];
+                             if (!f) return;
+                             if (f.size > 3 * 1024 * 1024) {
+                               setError('Dosya en fazla 3MB olabilir (demo veritabanı sınırı).');
+                               return;
+                             }
+                             const reader = new FileReader();
+                             reader.onload = () => updateEntry(i, { value: reader.result, fileName: f.name });
+                             reader.readAsDataURL(f);
+                           }} />
+                  </label>
+                  <span className="muted" style={{ fontSize: 13 }}>
+                    {e.fileName ? `📄 ${e.fileName}` : 'dosya seçilmedi'}
+                  </span>
+                </div>
+              ) : (
+                <input placeholder="değer" value={e.value}
+                       type={e.sensitive ? 'password' : 'text'}
+                       onChange={(ev) => updateEntry(i, { value: ev.target.value })} style={{ flex: 1 }} />
+              )}
               <label className="row muted" style={{ fontSize: 12, gap: 4 }}>
                 <input type="checkbox" checked={e.sensitive}
                        onChange={(ev) => updateEntry(i, { sensitive: ev.target.checked })}

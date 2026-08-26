@@ -66,7 +66,8 @@
     while (Date.now() < deadline) {
       for (let i = 0; i < sorted.length; i++) {
         const el = findByCandidate(sorted[i]);
-        if (isVisible(el) && (!validate || validate(el))) {
+        const visibleOk = isVisible(el) || (el && validate && el.tagName === 'INPUT' && el.type === 'file');
+        if (el && visibleOk && (!validate || validate(el))) {
           return { el, usedIndex: i, strategy: sorted[i].strategy };
         }
       }
@@ -90,6 +91,9 @@
     }
     if (step.action === 'select') {
       return (el) => el.tagName === 'SELECT';
+    }
+    if (step.action === 'upload') {
+      return (el) => el.tagName === 'INPUT' && el.type === 'file';
     }
     return null; // click/assert: tür kısıtı yok
   }
@@ -180,6 +184,28 @@
         return r;
       } else if (step.action === 'select') {
         setNativeValue(found.el, step.value);
+        const r = { status: 'passed', healed, healedStrategy, screenshot: await captureScreenshot() };
+        await reportResult(stepIndex, step, r);
+        return r;
+      } else if (step.action === 'upload') {
+        if (!step.value || !String(step.value).startsWith('data:')) {
+          const r = { status: 'failed', healed, healedStrategy, screenshot: await captureScreenshot(),
+                   errorMessage: 'Dosya içeriği yok — bu adımı dosya tipli bir test verisi anahtarına 📎 ile bağlayın.' };
+          await reportResult(stepIndex, step, r);
+          return r;
+        }
+        // dataURL → File → input.files (Playwright setInputFiles'ın tarayıcı içi karşılığı)
+        const [head, b64] = String(step.value).split(',');
+        const mime = (head.match(/data:(.*?)(;|$)/) || [])[1] || 'application/octet-stream';
+        const bin = atob(b64);
+        const bytes = new Uint8Array(bin.length);
+        for (let bi = 0; bi < bin.length; bi++) bytes[bi] = bin.charCodeAt(bi);
+        const file = new File([bytes], step.fileName || 'dosya', { type: mime });
+        const dt = new DataTransfer();
+        dt.items.add(file);
+        found.el.files = dt.files;
+        found.el.dispatchEvent(new Event('input', { bubbles: true }));
+        found.el.dispatchEvent(new Event('change', { bubbles: true }));
         const r = { status: 'passed', healed, healedStrategy, screenshot: await captureScreenshot() };
         await reportResult(stepIndex, step, r);
         return r;

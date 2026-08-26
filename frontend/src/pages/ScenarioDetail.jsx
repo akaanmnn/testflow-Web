@@ -2,7 +2,7 @@ import { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { api } from '../lib/api';
 
-const ACTIONS = ['goto', 'click', 'fill', 'select', 'assert-text', 'assert-visible', 'wait'];
+const ACTIONS = ['goto', 'click', 'fill', 'select', 'upload', 'assert-text', 'assert-visible', 'wait'];
 
 export default function ScenarioDetail() {
   const { id } = useParams();
@@ -88,9 +88,13 @@ export default function ScenarioDetail() {
     return () => window.removeEventListener('message', onMessage);
   }, [id, navigate, steps, dataSets]);
 
-  const allKeys = [...new Set(dataSets.flatMap((ds) => {
-    try { return JSON.parse(ds.entries).map((e) => e.key); } catch { return []; }
-  }))];
+  // Anahtarlar tipleriyle: upload adımları dosya anahtarlarına, diğerleri metin anahtarlarına bağlanır
+  const allEntries = dataSets.flatMap((ds) => {
+    try { return JSON.parse(ds.entries).map((e) => ({ key: e.key, type: e.type || 'text' })); } catch { return []; }
+  });
+  const keysFor = (action) => [...new Set(allEntries
+    .filter((e) => (action === 'upload' ? e.type === 'file' : e.type !== 'file'))
+    .map((e) => e.key))];
 
   const updateStep = (i, patch) =>
     setSteps((prev) => prev.map((s, idx) => (idx === i ? { ...s, ...patch } : s)));
@@ -146,17 +150,18 @@ export default function ScenarioDetail() {
     try {
       const set = runDataSet ? dataSets.find((d) => d.id === runDataSet) : null;
       const entries = set ? JSON.parse(set.entries) : [];
-      const byKey = Object.fromEntries(entries.map((e) => [e.key, e.value]));
+      const byKey = Object.fromEntries(entries.map((e) => [e.key, e]));
 
       resolvedSteps = steps.map((s) => {
         if (!s.dataBinding) return s;
         const binding = JSON.parse(s.dataBinding);
-        const val = byKey[binding.dataSetKey];
+        const entry = byKey[binding.dataSetKey];
+        const val = entry?.value;
         if (val === undefined) {
           throw new Error(`"${binding.dataSetKey}" anahtarı seçilen test veri setinde yok. ` +
             (runDataSet ? 'Doğru seti seçtiğinizden emin olun.' : 'Koşum için bir test veri seti seçin.'));
         }
-        return { ...s, value: val };
+        return { ...s, value: val, ...(entry.type === 'file' ? { fileName: entry.fileName } : {}) };
       });
     } catch (e) {
       setError(e.message);
@@ -257,8 +262,8 @@ export default function ScenarioDetail() {
                   else updateStep(i, { dataBinding: JSON.stringify({ dataSetKey: v.slice(5) }) });
                 }}
                 style={{ width: 190 }}>
-                <option value="static">Sabit değer</option>
-                {allKeys.map((k) => <option key={k} value={`bind:${k}`}>📎 {k}</option>)}
+                <option value="static">{step.action === 'upload' ? 'Dosya seçilmedi' : 'Sabit değer'}</option>
+                {keysFor(step.action).map((k) => <option key={k} value={`bind:${k}`}>📎 {k}</option>)}
               </select>
 
               {binding ? (

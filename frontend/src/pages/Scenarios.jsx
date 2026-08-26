@@ -112,13 +112,14 @@ export default function Scenarios() {
     let byKey = {};
     if (batchDataSet) {
       const set = dataSets.find((d) => d.id === batchDataSet);
-      byKey = Object.fromEntries(JSON.parse(set.entries).map((en) => [en.key, en.value]));
+      byKey = Object.fromEntries(JSON.parse(set.entries).map((en) => [en.key, en]));
     }
     const steps = scenario.steps.map((s) => {
       if (!s.dataBinding) return s;
       const key = JSON.parse(s.dataBinding).dataSetKey;
-      if (byKey[key] === undefined) throw new Error(`"${key}" anahtarı veri setinde yok`);
-      return { ...s, value: byKey[key] };
+      const entry = byKey[key];
+      if (entry === undefined) throw new Error(`"${key}" anahtarı veri setinde yok`);
+      return { ...s, value: entry.value, ...(entry.type === 'file' ? { fileName: entry.fileName } : {}) };
     });
 
     let startUrl = scenario.startUrl;

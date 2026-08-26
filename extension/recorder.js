@@ -120,6 +120,21 @@
   document.addEventListener('change', (e) => {
     const el = e.target;
     if (!['INPUT', 'TEXTAREA', 'SELECT'].includes(el.tagName)) return;
+
+    // Dosya seçimi: içerik kaydedilmez (koşumda test verisinden gelir),
+    // sadece upload adımı + seçilen dosyanın adı not edilir.
+    if (el.type === 'file') {
+      const fileName = el.files && el.files[0] ? el.files[0].name : null;
+      sendStep({
+        action: 'upload',
+        candidates: JSON.stringify(buildCandidates(el)),
+        value: null,
+        sensitive: false,
+        meta: JSON.stringify({ tag: 'input', inputType: 'file', fileName, url: location.href }),
+      });
+      return;
+    }
+
     const sensitive = isSensitive(el);
     const fillKey = el.id || el.name || cssPath(el);
     const replacePrev = fillKey && fillKey === lastFillKey;
