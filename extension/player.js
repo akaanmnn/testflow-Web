@@ -146,14 +146,20 @@
   }
 
   async function executeStep(step, stepIndex) {
+    // Opsiyonel adım: başarısızlık koşumu kesmez, 'skipped' olarak geçilir
+    // (bazı kayıtlarda alan dolu/kilitli gelir veya hiç görünmez).
+    let optional = false;
+    try { optional = !!JSON.parse(step.meta || '{}').optional; } catch {}
+    const failStatus = optional ? 'skipped' : 'failed';
+    const failPrefix = optional ? 'Opsiyonel adım atlandı — ' : '';
     const candidates = JSON.parse(step.candidates || '[]');
     // Doğrulama adımları sayfa geçişi/yavaş yükleme sonrasına denk gelir —
     // onlara daha uzun bekleme tanınır (12sn), diğer adımlar 5sn.
     const timeoutMs = step.action.startsWith('assert') ? 12000 : 5000;
     const found = await findElement(candidates, validatorFor(step), timeoutMs);
     if (!found) {
-      const r = { status: 'failed', healed: false,
-        errorMessage: 'Element bulunamadı (tüm locator adayları denendi; tür uyumsuz eşleşmeler reddedildi).',
+      const r = { status: failStatus, healed: false,
+        errorMessage: failPrefix + 'Element bulunamadı (tüm locator adayları denendi; tür uyumsuz eşleşmeler reddedildi).',
         screenshot: await captureScreenshot() };
       await reportResult(stepIndex, step, r);
       return r;
@@ -175,8 +181,8 @@
       } else if (step.action === 'fill') {
         if (step.value === '***' || step.value == null) {
           const first = candidates[0] ? `${candidates[0].strategy}=${candidates[0].value}` : 'bilinmiyor';
-          const r = { status: 'failed', healed, healedStrategy, screenshot: await captureScreenshot(),
-                   errorMessage: `Gizli/boş değer (eleman: ${first}) — senaryoda bu adımı 📎 ile bir test verisi anahtarına bağlayıp Kaydet'e basın. Not: aynı alan için birden fazla fill adımı oluşmuş olabilir, fazlasını silin.` };
+          const r = { status: failStatus, healed, healedStrategy, screenshot: await captureScreenshot(),
+                   errorMessage: failPrefix + `Gizli/boş değer (eleman: ${first}) — senaryoda bu adımı 📎 ile bir test verisi anahtarına bağlayıp Kaydet'e basın. Not: aynı alan için birden fazla fill adımı oluşmuş olabilir, fazlasını silin.` };
           await reportResult(stepIndex, step, r);
           return r;
         }
@@ -192,8 +198,8 @@
         return r;
       } else if (step.action === 'upload') {
         if (!step.value || !String(step.value).startsWith('data:')) {
-          const r = { status: 'failed', healed, healedStrategy, screenshot: await captureScreenshot(),
-                   errorMessage: 'Dosya içeriği yok — bu adımı dosya tipli bir test verisi anahtarına 📎 ile bağlayın.' };
+          const r = { status: failStatus, healed, healedStrategy, screenshot: await captureScreenshot(),
+                   errorMessage: failPrefix + 'Dosya içeriği yok — bu adımı dosya tipli bir test verisi anahtarına 📎 ile bağlayın.' };
           await reportResult(stepIndex, step, r);
           return r;
         }
@@ -242,9 +248,9 @@
             lastStrategy = lastHealed ? again.strategy : null;
           }
         }
-        const r = { status: 'failed', healed: lastHealed, healedStrategy: lastStrategy,
+        const r = { status: failStatus, healed: lastHealed, healedStrategy: lastStrategy,
                  screenshot: await captureScreenshot(),
-                 errorMessage: `Metin doğrulaması başarısız — beklenen: "${expected.slice(0,80)}", bulunan: "${lastActual.slice(0,80)}"` };
+                 errorMessage: failPrefix + `Metin doğrulaması başarısız — beklenen: "${expected.slice(0,80)}", bulunan: "${lastActual.slice(0,80)}"` };
         await reportResult(stepIndex, step, r);
         return r;
       } else {
@@ -253,7 +259,7 @@
         return r;
       }
     } catch (e) {
-      const r = { status: 'failed', healed, healedStrategy, errorMessage: String(e).slice(0, 300) };
+      const r = { status: failStatus, healed, healedStrategy, errorMessage: failPrefix + String(e).slice(0, 300) };
       await reportResult(stepIndex, step, r);
       return r;
     }

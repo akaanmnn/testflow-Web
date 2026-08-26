@@ -342,6 +342,20 @@ export default function ScenarioDetail() {
                 gizli
               </label>
 
+              <label className="row muted" style={{ fontSize: 12, gap: 4 }}
+                     title="Opsiyonel adım başarısız olursa koşum kesilmez, adım atlanır (bazı kayıtlarda alan dolu/kilitli gelir veya görünmez)">
+                <input type="checkbox"
+                       checked={(() => { try { return !!JSON.parse(step.meta || '{}').optional; } catch { return false; } })()}
+                       onChange={(e) => {
+                         let m = {};
+                         try { m = JSON.parse(step.meta || '{}'); } catch {}
+                         m.optional = e.target.checked;
+                         updateStep(i, { meta: JSON.stringify(m) });
+                       }}
+                       style={{ width: 'auto' }} />
+                ops.
+              </label>
+
               <button className="ghost" onClick={() => moveStep(i, -1)}>↑</button>
               <button className="ghost" onClick={() => moveStep(i, 1)}>↓</button>
               <button className="danger" onClick={() => removeStep(i)}>✕</button>
