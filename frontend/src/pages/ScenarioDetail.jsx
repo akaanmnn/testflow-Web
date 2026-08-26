@@ -233,6 +233,18 @@ export default function ScenarioDetail() {
         </div>
       </div>
       <div className="row" style={{ marginBottom: 20 }}>
+        <select value="" onChange={(e) => {
+                  if (!e.target.value) return;
+                  // Ortam seçilince origin değişir, mevcut path korunur (varsa)
+                  try {
+                    const u = new URL(startUrl);
+                    setStartUrl(new URL(e.target.value).origin + u.pathname + u.search + u.hash);
+                  } catch { setStartUrl(e.target.value); }
+                }}
+                style={{ width: 160 }}>
+          <option value="">Ortamdan al…</option>
+          {environments.map((en) => <option key={en.id} value={en.baseUrl}>{en.name}</option>)}
+        </select>
         <input value={startUrl} onChange={(e) => setStartUrl(e.target.value)}
                placeholder="Başlangıç URL" style={{ maxWidth: 420, fontSize: 13 }} />
         <select value={folderId} onChange={(e) => setFolderId(e.target.value)} style={{ width: 180 }}>

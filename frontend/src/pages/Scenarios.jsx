@@ -264,9 +264,19 @@ export default function Scenarios() {
       {showNew && (
         <div className="card" style={{ marginBottom: 16 }}>
           <div className="row" style={{ marginBottom: 12 }}>
-            <input placeholder="Senaryo adı" value={name} onChange={(e) => setName(e.target.value)} />
+            <input placeholder="Senaryo adı" value={name} onChange={(e) => setName(e.target.value)} style={{ maxWidth: 240 }} />
+            <select value="" onChange={(e) => { if (e.target.value) setStartUrl(e.target.value); }}
+                    style={{ width: 170 }}>
+              <option value="">Ortamdan al…</option>
+              {environments.map((en) => <option key={en.id} value={en.baseUrl}>{en.name}</option>)}
+            </select>
             <input placeholder="Başlangıç URL (https://...)" value={startUrl} onChange={(e) => setStartUrl(e.target.value)} />
           </div>
+          {environments.length === 0 && (
+            <div className="muted" style={{ fontSize: 12, marginBottom: 10 }}>
+              İpucu: Ortamlar sayfasında ortam tanımlarsanız URL'yi buradan seçebilirsiniz.
+            </div>
+          )}
 
           {recording ? (
             <div className="badge queued" style={{ padding: '8px 14px' }}>
