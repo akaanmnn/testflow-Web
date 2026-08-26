@@ -1,22 +1,39 @@
 {
   "manifest_version": 3,
   "name": "TestFlow Recorder",
-  "version": "0.5.3",
+  "version": "0.6.0",
   "description": "TestFlow için web test kayıt ve koşum eklentisi (Chrome & Edge)",
-  "permissions": ["tabs", "storage", "scripting"],
-  "host_permissions": ["<all_urls>"],
+  "permissions": [
+    "tabs",
+    "storage",
+    "scripting",
+    "browsingData"
+  ],
+  "host_permissions": [
+    "<all_urls>"
+  ],
   "background": {
     "service_worker": "background.js"
   },
   "content_scripts": [
     {
-      "matches": ["http://localhost:5173/*", "http://127.0.0.1:5173/*"],
-      "js": ["bridge.js"],
+      "matches": [
+        "http://localhost:5173/*",
+        "http://127.0.0.1:5173/*"
+      ],
+      "js": [
+        "bridge.js"
+      ],
       "run_at": "document_start"
     },
     {
-      "matches": ["<all_urls>"],
-      "js": ["recorder.js", "player.js"],
+      "matches": [
+        "<all_urls>"
+      ],
+      "js": [
+        "recorder.js",
+        "player.js"
+      ],
       "run_at": "document_idle",
       "all_frames": false
     }

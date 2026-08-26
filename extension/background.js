@@ -1,6 +1,26 @@
 // Oturum durumu: { mode: 'record'|'play', ... }
 // Service worker uyuyabildiği için chrome.storage.session'da tutulur.
 
+// Gizli pencere açılamadığında (şirket politikası vb.) B planı:
+// hedef sitenin çerez/oturum verilerini temizleyerek temiz başlangıç sağla.
+async function clearSiteData(url) {
+  try {
+    const origin = new URL(url).origin;
+    await chrome.browsingData.remove({ origins: [origin] }, {
+      cookies: true,
+      localStorage: true,
+      cacheStorage: true,
+      indexedDB: true,
+      serviceWorkers: true,
+    });
+    console.log('Temiz oturum: site verileri temizlendi →', origin);
+    return true;
+  } catch (e) {
+    console.warn('Site verisi temizlenemedi:', e);
+    return false;
+  }
+}
+
 async function getSession() {
   const { session } = await chrome.storage.session.get('session');
   return session || null;
@@ -34,6 +54,7 @@ async function handle(msg, sender) {
       }
     } catch (e) { console.warn('Gizli pencere açılamadı, normal sekmeye düşülüyor:', e); }
     if (!tab) {
+      await clearSiteData(msg.startUrl); // B planı: normal sekme ama temiz oturum
       tab = await chrome.tabs.create({ url: msg.startUrl });
     }
     await setSession({
@@ -105,6 +126,7 @@ async function handle(msg, sender) {
       }
     } catch (e) { console.warn('Gizli pencere açılamadı, normal sekmeye düşülüyor:', e); }
     if (!tab) {
+      await clearSiteData(msg.startUrl); // B planı: normal sekme ama temiz oturum
       tab = await chrome.tabs.create({ url: msg.startUrl });
     }
     await setSession({
