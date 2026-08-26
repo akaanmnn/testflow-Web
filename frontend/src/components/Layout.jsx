@@ -55,6 +55,7 @@ export default function Layout() {
           <NavLink to="/test-data" style={navStyle}>Test Verileri</NavLink>
           <NavLink to="/environments" style={navStyle}>Ortamlar</NavLink>
           <NavLink to="/runs" style={navStyle}>Koşumlar</NavLink>
+          <NavLink to="/help" style={navStyle}>Yardım</NavLink>
         </nav>
         <div style={{ borderTop: '1px solid var(--border)', paddingTop: 14, padding: '14px 6px 0' }}>
           <div style={{ fontSize: 13, fontWeight: 500, marginBottom: 10 }}>{user?.displayName}</div>
