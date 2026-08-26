@@ -149,7 +149,12 @@
     // Opsiyonel adım: başarısızlık koşumu kesmez, 'skipped' olarak geçilir
     // (bazı kayıtlarda alan dolu/kilitli gelir veya hiç görünmez).
     let optional = false;
-    try { optional = !!JSON.parse(step.meta || '{}').optional; } catch {}
+    let ifEmpty = false;
+    try {
+      const m = JSON.parse(step.meta || '{}');
+      optional = !!m.optional;
+      ifEmpty = !!m.ifEmpty;
+    } catch {}
     const failStatus = optional ? 'skipped' : 'failed';
     const failPrefix = optional ? 'Opsiyonel adım atlandı — ' : '';
     const candidates = JSON.parse(step.candidates || '[]');
@@ -186,12 +191,36 @@
           await reportResult(stepIndex, step, r);
           return r;
         }
+        if (ifEmpty) {
+          const locked = found.el.disabled || found.el.readOnly;
+          const current = String(found.el.value ?? '').trim();
+          if (locked || current) {
+            const r = { status: 'skipped', healed, healedStrategy, screenshot: await captureScreenshot(),
+                     errorMessage: locked
+                       ? 'Alan kilitli (disabled/readonly) geldi — boşsa-doldur gereği dokunulmadı.'
+                       : 'Alan zaten dolu geldi — boşsa-doldur gereği mevcut değer korundu.' };
+            await reportResult(stepIndex, step, r);
+            return r;
+          }
+        }
         found.el.focus();
         setNativeValue(found.el, step.value);
         const r = { status: 'passed', healed, healedStrategy, screenshot: await captureScreenshot() };
         await reportResult(stepIndex, step, r);
         return r;
       } else if (step.action === 'select') {
+        if (ifEmpty) {
+          const locked = found.el.disabled;
+          const current = String(found.el.value ?? '').trim();
+          if (locked || current) {
+            const r = { status: 'skipped', healed, healedStrategy, screenshot: await captureScreenshot(),
+                     errorMessage: locked
+                       ? 'Seçim alanı kilitli (disabled) geldi — boşsa-doldur gereği dokunulmadı.'
+                       : 'Seçim alanı zaten dolu geldi — boşsa-doldur gereği mevcut seçim korundu.' };
+            await reportResult(stepIndex, step, r);
+            return r;
+          }
+        }
         setNativeValue(found.el, step.value);
         const r = { status: 'passed', healed, healedStrategy, screenshot: await captureScreenshot() };
         await reportResult(stepIndex, step, r);

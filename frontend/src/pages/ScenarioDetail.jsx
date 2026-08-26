@@ -342,6 +342,22 @@ export default function ScenarioDetail() {
                 gizli
               </label>
 
+              {['fill', 'select'].includes(step.action) && (
+                <label className="row muted" style={{ fontSize: 12, gap: 4 }}
+                       title="Alan dolu veya kilitli (disabled) geldiyse dokunulmaz, adım atlanır; boş ve aktifse doldurulur. Dosyadan dosyaya dolu gelebilen alanlar için.">
+                  <input type="checkbox"
+                         checked={(() => { try { return !!JSON.parse(step.meta || '{}').ifEmpty; } catch { return false; } })()}
+                         onChange={(e) => {
+                           let m = {};
+                           try { m = JSON.parse(step.meta || '{}'); } catch {}
+                           m.ifEmpty = e.target.checked;
+                           updateStep(i, { meta: JSON.stringify(m) });
+                         }}
+                         style={{ width: 'auto' }} />
+                  boşsa
+                </label>
+              )}
+
               <label className="row muted" style={{ fontSize: 12, gap: 4 }}
                      title="Opsiyonel adım başarısız olursa koşum kesilmez, adım atlanır (bazı kayıtlarda alan dolu/kilitli gelir veya görünmez)">
                 <input type="checkbox"
