@@ -218,15 +218,33 @@
         await reportResult(stepIndex, step, r);
         return r;
       } else if (step.action === 'assert-text') {
-        const actual = (found.el.innerText || found.el.value || '').trim();
         const expected = (step.value || '').trim();
-        if (expected && actual.includes(expected)) {
-          const r = { status: 'passed', healed, healedStrategy, screenshot: await captureScreenshot() };
-          await reportResult(stepIndex, step, r);
-          return r;
+        // SPA/menü geçişlerinde element hemen bulunur ama içeriği gecikmeli
+        // değişir ("İş Listesi" → "Dosya Listeleme" gibi). Bu yüzden elementi
+        // ve metni BİRLİKTE, süre dolana dek yeniden kontrol ederiz — sayfa
+        // yeniden render edilse bile her turda taze element üzerinden bakılır.
+        const deadline = Date.now() + 12000;
+        let lastActual = (found.el.innerText || found.el.value || '').trim();
+        let lastHealed = healed;
+        let lastStrategy = healedStrategy;
+        while (Date.now() < deadline) {
+          if (expected && lastActual.includes(expected)) {
+            const r = { status: 'passed', healed: lastHealed, healedStrategy: lastStrategy,
+                        screenshot: await captureScreenshot() };
+            await reportResult(stepIndex, step, r);
+            return r;
+          }
+          await sleep(400);
+          const again = await findElement(candidates, validatorFor(step), 600);
+          if (again) {
+            lastActual = (again.el.innerText || again.el.value || '').trim();
+            lastHealed = again.usedIndex > 0;
+            lastStrategy = lastHealed ? again.strategy : null;
+          }
         }
-        const r = { status: 'failed', healed, healedStrategy, screenshot: await captureScreenshot(),
-                 errorMessage: `Metin doğrulaması başarısız — beklenen: "${expected.slice(0,80)}", bulunan: "${actual.slice(0,80)}"` };
+        const r = { status: 'failed', healed: lastHealed, healedStrategy: lastStrategy,
+                 screenshot: await captureScreenshot(),
+                 errorMessage: `Metin doğrulaması başarısız — beklenen: "${expected.slice(0,80)}", bulunan: "${lastActual.slice(0,80)}"` };
         await reportResult(stepIndex, step, r);
         return r;
       } else {
