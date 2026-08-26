@@ -265,10 +265,15 @@ export default function Scenarios() {
         <div className="card" style={{ marginBottom: 16 }}>
           <div className="row" style={{ marginBottom: 12 }}>
             <input placeholder="Senaryo adı" value={name} onChange={(e) => setName(e.target.value)} style={{ maxWidth: 240 }} />
-            <select value="" onChange={(e) => { if (e.target.value) setStartUrl(e.target.value); }}
-                    style={{ width: 170 }}>
-              <option value="">Ortamdan al…</option>
-              {environments.map((en) => <option key={en.id} value={en.baseUrl}>{en.name}</option>)}
+            <select
+              value={environments.find((en) => startUrl.startsWith(en.baseUrl))?.id || ''}
+              onChange={(e) => {
+                const en = environments.find((x) => x.id === e.target.value);
+                if (en) setStartUrl(en.baseUrl);
+              }}
+              style={{ width: 170 }}>
+              <option value="">Ortam seç…</option>
+              {environments.map((en) => <option key={en.id} value={en.id}>{en.name}</option>)}
             </select>
             <input placeholder="Başlangıç URL (https://...)" value={startUrl} onChange={(e) => setStartUrl(e.target.value)} />
           </div>
