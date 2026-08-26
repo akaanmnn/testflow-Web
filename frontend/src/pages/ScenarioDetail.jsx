@@ -11,6 +11,7 @@ export default function ScenarioDetail() {
   const [name, setName] = useState('');
   const [startUrl, setStartUrl] = useState('');
   const [folderId, setFolderId] = useState('');
+  const [manualUrl, setManualUrl] = useState(false);
   const [folders, setFolders] = useState([]);
   const [dataSets, setDataSets] = useState([]);
   const [environments, setEnvironments] = useState([]);
@@ -234,12 +235,13 @@ export default function ScenarioDetail() {
       </div>
       <div className="row" style={{ marginBottom: 20 }}>
         <select
-          value={environments.find((en) => {
+          value={manualUrl ? '' : (environments.find((en) => {
             try { return new URL(startUrl).origin === new URL(en.baseUrl).origin; } catch { return false; }
-          })?.id || ''}
+          })?.id || '')}
           onChange={(e) => {
             const en = environments.find((x) => x.id === e.target.value);
-            if (!en) return;
+            if (!en) { setManualUrl(true); return; } // Elle gir: URL korunur, input açılır
+            setManualUrl(false);
             // Ortam seçilince origin değişir, mevcut path korunur (varsa)
             try {
               const u = new URL(startUrl);
@@ -250,7 +252,7 @@ export default function ScenarioDetail() {
           <option value="">Elle URL gir…</option>
           {environments.map((en) => <option key={en.id} value={en.id}>{en.name}</option>)}
         </select>
-        {environments.some((en) => {
+        {!manualUrl && environments.some((en) => {
           try { return new URL(startUrl).origin === new URL(en.baseUrl).origin; } catch { return false; }
         }) ? (
           <span className="muted" style={{ fontSize: 13 }}>{startUrl}</span>
