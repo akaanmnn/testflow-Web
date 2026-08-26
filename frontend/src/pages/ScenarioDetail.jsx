@@ -246,12 +246,18 @@ export default function ScenarioDetail() {
               setStartUrl(new URL(en.baseUrl).origin + u.pathname + u.search + u.hash);
             } catch { setStartUrl(en.baseUrl); }
           }}
-          style={{ width: 160 }}>
-          <option value="">Ortam seç…</option>
+          style={{ width: 180 }}>
+          <option value="">Elle URL gir…</option>
           {environments.map((en) => <option key={en.id} value={en.id}>{en.name}</option>)}
         </select>
-        <input value={startUrl} onChange={(e) => setStartUrl(e.target.value)}
-               placeholder="Başlangıç URL" style={{ maxWidth: 420, fontSize: 13 }} />
+        {environments.some((en) => {
+          try { return new URL(startUrl).origin === new URL(en.baseUrl).origin; } catch { return false; }
+        }) ? (
+          <span className="muted" style={{ fontSize: 13 }}>{startUrl}</span>
+        ) : (
+          <input value={startUrl} onChange={(e) => setStartUrl(e.target.value)}
+                 placeholder="Başlangıç URL" style={{ maxWidth: 420, fontSize: 13 }} />
+        )}
         <select value={folderId} onChange={(e) => setFolderId(e.target.value)} style={{ width: 180 }}>
           <option value="">Klasörsüz</option>
           {folders.map((f) => <option key={f.id} value={f.id}>{f.name}</option>)}

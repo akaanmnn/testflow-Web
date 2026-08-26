@@ -269,13 +269,17 @@ export default function Scenarios() {
               value={environments.find((en) => startUrl.startsWith(en.baseUrl))?.id || ''}
               onChange={(e) => {
                 const en = environments.find((x) => x.id === e.target.value);
-                if (en) setStartUrl(en.baseUrl);
+                setStartUrl(en ? en.baseUrl : '');
               }}
-              style={{ width: 170 }}>
-              <option value="">Ortam seç…</option>
+              style={{ width: 190 }}>
+              <option value="">Elle URL gir…</option>
               {environments.map((en) => <option key={en.id} value={en.id}>{en.name}</option>)}
             </select>
-            <input placeholder="Başlangıç URL (https://...)" value={startUrl} onChange={(e) => setStartUrl(e.target.value)} />
+            {environments.find((en) => startUrl.startsWith(en.baseUrl)) ? (
+              <span className="muted" style={{ fontSize: 13, flex: 1 }}>{startUrl}</span>
+            ) : (
+              <input placeholder="Başlangıç URL (https://...)" value={startUrl} onChange={(e) => setStartUrl(e.target.value)} />
+            )}
           </div>
           {environments.length === 0 && (
             <div className="muted" style={{ fontSize: 12, marginBottom: 10 }}>
