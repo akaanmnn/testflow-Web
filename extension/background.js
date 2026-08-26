@@ -70,10 +70,27 @@ async function handle(msg, sender) {
 
   // ===== KOŞUM =====
   if (msg.type === 'START_RUN') {
-    const tab = await chrome.tabs.create({ url: msg.startUrl });
+    // Temiz oturum: izin verildiyse gizli pencerede koş (önceki koşumun
+    // login çerezleri taşınmaz, kullanıcının normal oturumları etkilenmez).
+    let tab = null;
+    let windowId = null;
+    let incognito = false;
+    try {
+      if (await chrome.extension.isAllowedIncognitoAccess()) {
+        const win = await chrome.windows.create({ url: msg.startUrl, incognito: true, focused: true });
+        tab = win.tabs && win.tabs[0];
+        windowId = win.id;
+        incognito = true;
+      }
+    } catch (e) { console.warn('Gizli pencere açılamadı, normal sekmeye düşülüyor:', e); }
+    if (!tab) {
+      tab = await chrome.tabs.create({ url: msg.startUrl });
+    }
     await setSession({
       mode: 'play',
       tabId: tab.id,
+      windowId,
+      incognito,
       appTabId: sender.tab.id,
       startUrl: msg.startUrl,
       steps: msg.steps,
@@ -128,7 +145,11 @@ async function handle(msg, sender) {
       });
       await chrome.tabs.update(s.appTabId, { active: true });
     } catch (e) { console.error('TestFlow sekmesine ulaşılamadı:', e); }
-    if (sender.tab && sender.tab.id === s.tabId) chrome.tabs.remove(s.tabId);
+    if (s.incognito && s.windowId != null) {
+      chrome.windows.remove(s.windowId).catch(() => {});
+    } else if (sender.tab && sender.tab.id === s.tabId) {
+      chrome.tabs.remove(s.tabId);
+    }
     return { ok: true };
   }
 

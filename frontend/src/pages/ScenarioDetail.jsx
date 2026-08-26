@@ -225,6 +225,11 @@ export default function ScenarioDetail() {
             </select>
             <button onClick={startRun}>Başlat</button>
           </div>
+          <div className="muted" style={{ fontSize: 12, marginTop: 8 }}>
+            💡 Temiz oturum için: koşumlar gizli pencerede yapılır — bunun için bir kez
+            <code>chrome://extensions</code> → TestFlow Recorder → Ayrıntılar → <b>Gizli modda izin ver</b>'i açın.
+            İzin yoksa koşum normal sekmede yapılır ve önceki oturum (login) açık kalabilir.
+          </div>
           {hasBinding && !runDataSet && (
             <div className="muted" style={{ fontSize: 12 }}>
               ⚠️ Bu senaryoda test verisine bağlı adımlar var — koşum için bir veri seti seçmelisiniz.

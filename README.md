@@ -124,3 +124,14 @@ senaryoyu yeni sekmede oynatır:
 - Ortam seçilirse başlangıç URL'inin origin'i ortamın baseUrl'i ile değiştirilir.
 - Koşum bitince sonuçlar otomatik olarak backend'e kaydedilir ve
   **Koşumlar** sayfası açılır (adım bazlı durum + healed bilgisi).
+
+## Temiz oturumla koşum (gizli pencere)
+
+Koşumlar, eklentiye gizli mod izni verildiyse **gizli pencerede** yapılır:
+her koşum sıfır çerezle (login'siz) başlar, bitince pencere kapanır ve oturum
+silinir. Kullanıcının normal tarayıcı oturumları etkilenmez.
+
+İzin vermek için (bir kez): `chrome://extensions` → TestFlow Recorder →
+**Ayrıntılar** → **Gizli modda izin ver** (Edge: InPrivate'ta izin ver).
+İzin verilmezse koşumlar normal sekmede yapılır — önceki koşumun oturumu
+açık kalabilir ve login senaryoları bundan etkilenebilir.
