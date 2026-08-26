@@ -127,7 +127,7 @@ senaryoyu yeni sekmede oynatır:
 
 ## Temiz oturumla koşum (gizli pencere)
 
-Koşumlar, eklentiye gizli mod izni verildiyse **gizli pencerede** yapılır:
+Kayıt ve koşumlar, eklentiye gizli mod izni verildiyse **gizli pencerede** yapılır:
 her koşum sıfır çerezle (login'siz) başlar, bitince pencere kapanır ve oturum
 silinir. Kullanıcının normal tarayıcı oturumları etkilenmez.
 

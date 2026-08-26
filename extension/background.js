@@ -20,10 +20,27 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
 async function handle(msg, sender) {
   // ===== KAYIT =====
   if (msg.type === 'START_RECORDING') {
-    const tab = await chrome.tabs.create({ url: msg.startUrl });
+    // Koşumla simetri: kayıt da (izin varsa) gizli pencerede, temiz oturumla.
+    // Böylece "kayıtta login'liydim, koşumda değildim" tutarsızlığı oluşmaz.
+    let tab = null;
+    let windowId = null;
+    let incognito = false;
+    try {
+      if (await chrome.extension.isAllowedIncognitoAccess()) {
+        const win = await chrome.windows.create({ url: msg.startUrl, incognito: true, focused: true });
+        tab = win.tabs && win.tabs[0];
+        windowId = win.id;
+        incognito = true;
+      }
+    } catch (e) { console.warn('Gizli pencere açılamadı, normal sekmeye düşülüyor:', e); }
+    if (!tab) {
+      tab = await chrome.tabs.create({ url: msg.startUrl });
+    }
     await setSession({
       mode: 'record',
       tabId: tab.id,
+      windowId,
+      incognito,
       appTabId: sender.tab.id,
       scenarioName: msg.scenarioName,
       startUrl: msg.startUrl,
@@ -64,7 +81,11 @@ async function handle(msg, sender) {
       });
       await chrome.tabs.update(s.appTabId, { active: true });
     } catch (e) { console.error('TestFlow sekmesine ulaşılamadı:', e); }
-    if (sender.tab && sender.tab.id === s.tabId) chrome.tabs.remove(s.tabId);
+    if (s.incognito && s.windowId != null) {
+      chrome.windows.remove(s.windowId).catch(() => {});
+    } else if (sender.tab && sender.tab.id === s.tabId) {
+      chrome.tabs.remove(s.tabId);
+    }
     return { ok: true };
   }
 
