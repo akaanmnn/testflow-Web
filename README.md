@@ -5,6 +5,8 @@ LDAP (Active Directory) ile giriş, AD grup bazlı workspace izolasyonu.
 
 > Masaüstü (Electron) sürüm için: [testflow](https://github.com/akaanmnn/testflow)
 
+> Ayrıntılı teknik mimari için: [MIMARI.md](MIMARI.md) · Son kullanıcı kılavuzu: [KULLANIM-KILAVUZU.md](KULLANIM-KILAVUZU.md)
+
 ## Mimari
 
 ```
