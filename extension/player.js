@@ -159,8 +159,10 @@
     const failPrefix = optional ? 'Opsiyonel adım atlandı — ' : '';
     const candidates = JSON.parse(step.candidates || '[]');
     // Doğrulama adımları sayfa geçişi/yavaş yükleme sonrasına denk gelir —
-    // onlara daha uzun bekleme tanınır (12sn), diğer adımlar 5sn.
-    const timeoutMs = step.action.startsWith('assert') ? 12000 : 5000;
+    // onlara daha uzun bekleme tanınır (12sn). Opsiyonel adımlar (örn. bazen
+    // gelen modal kapatma) kısa bekler (3sn) ki modal gelmeyen sayfalarda
+    // koşum gereksiz duraksamasın. Diğer adımlar 5sn.
+    const timeoutMs = step.action.startsWith('assert') ? 12000 : (optional ? 3000 : 5000);
     const found = await findElement(candidates, validatorFor(step), timeoutMs);
     if (!found) {
       const r = { status: failStatus, healed: false,
