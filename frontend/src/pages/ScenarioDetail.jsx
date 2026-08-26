@@ -8,6 +8,10 @@ export default function ScenarioDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
   const [scenario, setScenario] = useState(null);
+  const [name, setName] = useState('');
+  const [startUrl, setStartUrl] = useState('');
+  const [folderId, setFolderId] = useState('');
+  const [folders, setFolders] = useState([]);
   const [dataSets, setDataSets] = useState([]);
   const [environments, setEnvironments] = useState([]);
   const [steps, setSteps] = useState([]);
@@ -20,12 +24,16 @@ export default function ScenarioDetail() {
   const runCtx = useRef(null);
 
   useEffect(() => {
-    Promise.all([api(`/scenarios/${id}`), api('/test-data-sets'), api('/environments')])
-      .then(([s, ds, envs]) => {
+    Promise.all([api(`/scenarios/${id}`), api('/test-data-sets'), api('/environments'), api('/folders')])
+      .then(([s, ds, envs, f]) => {
         setScenario(s);
+        setName(s.name);
+        setStartUrl(s.startUrl);
+        setFolderId(s.folderId || '');
         setSteps(s.steps || []);
         setDataSets(ds);
         setEnvironments(envs);
+        setFolders(f);
       })
       .catch((e) => setError(e.message));
   }, [id]);
@@ -123,9 +131,16 @@ export default function ScenarioDetail() {
       const normalized = steps.map((s, i) => ({ ...s, orderIndex: i }));
       const updated = await api(`/scenarios/${id}`, {
         method: 'PATCH',
-        body: JSON.stringify({ steps: normalized }),
+        body: JSON.stringify({
+          name: name || scenario.name,
+          startUrl: startUrl || scenario.startUrl,
+          folderId: folderId || null,
+          steps: normalized,
+        }),
       });
       setScenario(updated);
+      setName(updated.name);
+      setStartUrl(updated.startUrl);
       setSteps(updated.steps || []);
       setSaved(true);
       setTimeout(() => setSaved(false), 2500);
@@ -201,7 +216,14 @@ export default function ScenarioDetail() {
   return (
     <div>
       <div className="row" style={{ justifyContent: 'space-between', marginBottom: 4 }}>
-        <h1 className="page-title" style={{ margin: 0 }}>{scenario.name}</h1>
+        <input value={name} onChange={(e) => setName(e.target.value)}
+               style={{
+                 fontFamily: 'var(--font-display)', fontSize: 22, fontWeight: 600,
+                 border: '1px solid transparent', background: 'transparent',
+                 padding: '4px 8px', marginLeft: -8, width: 'auto', flex: 1, maxWidth: 480,
+               }}
+               onFocus={(e) => { e.target.style.borderColor = 'var(--border)'; e.target.style.background = 'var(--surface)'; }}
+               onBlur={(e) => { e.target.style.borderColor = 'transparent'; e.target.style.background = 'transparent'; }} />
         <div className="row">
           <button className="danger" onClick={del}>Sil</button>
           <button className="ghost" onClick={() => setShowRun(!showRun)} disabled={running || steps.length === 0}>
@@ -210,7 +232,14 @@ export default function ScenarioDetail() {
           <button onClick={save}>{saved ? 'Kaydedildi ✓' : 'Kaydet'}</button>
         </div>
       </div>
-      <div className="muted" style={{ marginBottom: 20 }}>{scenario.startUrl}</div>
+      <div className="row" style={{ marginBottom: 20 }}>
+        <input value={startUrl} onChange={(e) => setStartUrl(e.target.value)}
+               placeholder="Başlangıç URL" style={{ maxWidth: 420, fontSize: 13 }} />
+        <select value={folderId} onChange={(e) => setFolderId(e.target.value)} style={{ width: 180 }}>
+          <option value="">Klasörsüz</option>
+          {folders.map((f) => <option key={f.id} value={f.id}>{f.name}</option>)}
+        </select>
+      </div>
 
       {showRun && (
         <div className="card" style={{ marginBottom: 16 }}>
