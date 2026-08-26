@@ -60,9 +60,9 @@
   // Adayları skorla dener; 5sn boyunca 250ms'de bir yeniden dener (sayfa yükleniyor olabilir).
   // validate: bulunan elemanın adım için uygunluğunu doğrular (yanlış elemana
   // "iyileşme" adı altında işlem yapılmasını engeller).
-  async function findElement(candidates, validate) {
+  async function findElement(candidates, validate, timeoutMs = 5000) {
     const sorted = [...candidates].sort((a, b) => (b.score ?? 0) - (a.score ?? 0));
-    const deadline = Date.now() + 5000;
+    const deadline = Date.now() + timeoutMs;
     while (Date.now() < deadline) {
       for (let i = 0; i < sorted.length; i++) {
         const el = findByCandidate(sorted[i]);
@@ -147,7 +147,10 @@
 
   async function executeStep(step, stepIndex) {
     const candidates = JSON.parse(step.candidates || '[]');
-    const found = await findElement(candidates, validatorFor(step));
+    // Doğrulama adımları sayfa geçişi/yavaş yükleme sonrasına denk gelir —
+    // onlara daha uzun bekleme tanınır (12sn), diğer adımlar 5sn.
+    const timeoutMs = step.action.startsWith('assert') ? 12000 : 5000;
+    const found = await findElement(candidates, validatorFor(step), timeoutMs);
     if (!found) {
       const r = { status: 'failed', healed: false,
         errorMessage: 'Element bulunamadı (tüm locator adayları denendi; tür uyumsuz eşleşmeler reddedildi).',
