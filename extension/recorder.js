@@ -94,6 +94,50 @@
 
   let assertMode = false;
 
+  // ---- Select2 benzeri özel dropdown'lar ----
+  // Gerçek <select> gizlenir, sahte span'ler dinamik id'lidir; ham tıklamaları
+  // kaydetmek koşumda kırılır. Bunun yerine seçimi, altta yatan GERÇEK select'e
+  // yapılmış bir 'select' adımına çevirir, sahte elemanlara tıklamaları yok sayarız.
+  function findOpenSelect2Select() {
+    for (const cont of document.querySelectorAll('.select2-container--open')) {
+      const prev = cont.previousElementSibling;
+      if (prev && prev.tagName === 'SELECT') return prev;
+    }
+    const hidden = document.querySelectorAll('select.select2-hidden-accessible');
+    return hidden.length === 1 ? hidden[0] : null;
+  }
+
+  function recordSelect2Choice(li) {
+    const sel = findOpenSelect2Select();
+    const text = (li.textContent || '').trim();
+    if (!sel || !text) {
+      // Çözemedik — hiç değilse ham click olarak kaydet (eski davranış)
+      sendStep({
+        action: 'click',
+        candidates: JSON.stringify(buildCandidates(li)),
+        value: null,
+        sensitive: false,
+        meta: JSON.stringify({ tag: 'li', via: 'select2-fallback', url: location.href }),
+      });
+      return;
+    }
+    const opt = [...sel.options].find((o) => (o.text || '').trim() === text);
+    sendStep({
+      action: 'select',
+      candidates: JSON.stringify(buildCandidates(sel)),
+      value: opt ? opt.value : text,
+      sensitive: false,
+      meta: JSON.stringify({ tag: 'select', via: 'select2', optionText: text, url: location.href }),
+    });
+  }
+
+  // Seçim mousedown anında yakalanır: dropdown henüz açık, select'e bağlanabiliriz
+  document.addEventListener('mousedown', (e) => {
+    if (assertMode || barEl.contains(e.target)) return;
+    const li = e.target.closest('.select2-results__option');
+    if (li) recordSelect2Choice(li);
+  }, true);
+
   // Tıklama (capture fazında — preventDefault yapan sitelerde de yakalar)
   document.addEventListener('click', (e) => {
     const rawTarget = e.target;
@@ -115,6 +159,10 @@
       exitAssertMode();
       return;
     }
+
+    // Select2 arayüzü: aç/kapa ve seçenek tıklamaları kaydedilmez
+    // (seçim yukarıdaki mousedown dinleyicisinde 'select' adımına çevrildi)
+    if (rawTarget.closest('.select2-container, .select2-dropdown, .select2-selection, .select2-results')) return;
 
     const el = rawTarget.closest('button, a, input, select, [role="button"], label') || rawTarget;
     sendStep({

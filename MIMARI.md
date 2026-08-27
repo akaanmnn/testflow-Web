@@ -144,6 +144,10 @@ kaybolur, aynı adım yeni sayfada tekrar aranır ve sahte "element bulunamadı"
      değil, yalnızca adı kaydedilir)
    - Aynı alana ardışık change'ler **tek adıma tekilleştirilir**
      (`replacePrev` — araya tıklama girince zincir kırılır)
+   - **Select2 desteği:** sahte dropdown'a tıklamalar kaydedilmez; seçenek
+     seçimi mousedown'da yakalanıp altta yatan gerçek `<select>`'e yapılmış
+     bir `select` adımına çevrilir (dinamik id'li select2 span'lerine
+     bağımlılık oluşmaz)
 3. **Locator aday üretimi** — her hedef eleman için skorlu adaylar:
 
    | Strateji | Skor |
