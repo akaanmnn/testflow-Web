@@ -154,7 +154,7 @@ kaybolur, aynı adım yeni sayfada tekrar aranır ve sahte "element bulunamadı"
    | aria-label | 0.85 |
    | placeholder | 0.80 |
    | href (linklerde) | 0.75 |
-   | CSS yolu (≤6 seviye, nth-of-type) | 0.60 |
+   | CSS yolu (stabil id'ye ya da body'ye demirli, her seviyede nth-child; kayıt anında elemente çözümlendiği doğrulanır — doğrulanamazsa aday üretilmez) | 0.60 |
    | görünen metin — **bilinçli olarak son çare** (metinler sık değişir) | 0.45 |
    | dinamik görünen id / name (framework üretimi: `input-8342`, `ember123`, uuid…) | 0.40–0.42 |
 

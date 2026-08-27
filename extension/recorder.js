@@ -13,24 +13,35 @@
   // ---------- Locator aday üretimi (self-healing temeli) ----------
   function cssPath(el) {
     if (!(el instanceof Element)) return null;
+    const target = el;
     const parts = [];
-    while (el && el.nodeType === Node.ELEMENT_NODE && parts.length < 6) {
-      let selector = el.nodeName.toLowerCase();
-      if (el.id) {
-        parts.unshift(`${selector}#${CSS.escape(el.id)}`);
+    let node = el;
+    while (node && node.nodeType === Node.ELEMENT_NODE &&
+           node.tagName !== 'BODY' && node.tagName !== 'HTML') {
+      // Stabil (dinamik olmayan) id'li ataya demirle — yol oradan başlar
+      if (node.id && !looksDynamic(node.id)) {
+        parts.unshift(`#${CSS.escape(node.id)}`);
         break;
       }
-      const parent = el.parentNode;
+      // Her seviyede kesin konum (nth-child) — belirsiz eşleşme olmaz
+      let sel = node.nodeName.toLowerCase();
+      const parent = node.parentElement;
       if (parent) {
-        const siblings = [...parent.children].filter((c) => c.nodeName === el.nodeName);
-        if (siblings.length > 1) {
-          selector += `:nth-of-type(${siblings.indexOf(el) + 1})`;
-        }
+        const idx = [...parent.children].indexOf(node) + 1;
+        sel += `:nth-child(${idx})`;
       }
-      parts.unshift(selector);
-      el = el.parentElement;
+      parts.unshift(sel);
+      node = node.parentElement;
     }
-    return parts.join(' > ');
+    // Id çapası yoksa body'ye demirle (havada asılı seçici üretme)
+    if (parts.length && !parts[0].startsWith('#')) parts.unshift('body');
+    const path = parts.join(' > ');
+    // Doğrulama: seçici kayıt anında tam olarak bu elemente çözümlenmeli;
+    // çözümlenmiyorsa CSS adayı HİÇ üretilmez (yanlış aday üretmekten iyidir).
+    try {
+      if (path && document.querySelector(path) === target) return path;
+    } catch {}
+    return null;
   }
 
   // Dinamik (her yüklemede değişen) kimlik tespiti: framework üretimi
