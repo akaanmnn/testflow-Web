@@ -22,9 +22,10 @@ export default function ScenarioDetail() {
   const [saved, setSaved] = useState(false);
   const [showRun, setShowRun] = useState(false);
   const [runEnv, setRunEnv] = useState('');
-  const [runDataSet, setRunDataSet] = useState('');
+  const [runDataSets, setRunDataSets] = useState(new Set()); // çoklu veri seti (data-driven)
   const [running, setRunning] = useState(false);
-  const runCtx = useRef(null);
+  const [progress, setProgress] = useState(null); // { current, total, results: [{setName, status}] }
+  const runDoneResolver = useRef(null);
 
   useEffect(() => {
     Promise.all([api(`/scenarios/${id}`), api('/test-data-sets'), api('/environments'), api('/folders')])
@@ -42,63 +43,44 @@ export default function ScenarioDetail() {
     api('/projects').then(setProjects).catch(() => {});
   }, [id]);
 
-  // Koşum sonucu dinleyicisi (eklentiden)
+  // Koşum sonucu dinleyicisi: bekleyen promise'i çözer (sıralı koşum döngüsü bekliyor)
   useEffect(() => {
-    const onMessage = async (event) => {
-      if (event.source !== window || !event.data) return;
-      if (event.data.type !== 'TESTFLOW_RUN_DONE') return;
-      if (!runCtx.current || event.data.runContext?.scenarioId !== id) return;
-
-      setRunning(false);
-      const results = event.data.results || [];
-      const anyFailed = results.some((r) => r.status === 'failed');
-      try {
-        await api('/runs', {
-          method: 'POST',
-          body: JSON.stringify({
-            scenarioId: id,
-            environmentId: runCtx.current.environmentId,
-            testDataSetId: runCtx.current.testDataSetId,
-            status: event.data.aborted ? 'failed' : (anyFailed ? 'failed' : 'passed'),
-            startedAt: event.data.startedAt,
-            finishedAt: event.data.finishedAt,
-            stepResults: results,
-          }),
-        });
-
-        // İyileşmeyi kalıcılaştır: healed adımlarda çalışan stratejinin
-        // skorunu yükselt ki sonraki koşumda ilk denemede bulunsun.
-        const healedResults = results.filter((r) => r.healed && r.healedStrategy);
-        if (healedResults.length > 0) {
-          const patchedSteps = steps.map((s) => {
-            const hr = healedResults.find(
-              (r) => (r.stepId && r.stepId === s.id) || r.orderIndex === s.orderIndex,
-            );
-            if (!hr) return s;
-            try {
-              const cands = JSON.parse(s.candidates || '[]');
-              const maxScore = Math.max(...cands.map((c) => c.score ?? 0), 0);
-              const updated = cands.map((c) =>
-                c.strategy === hr.healedStrategy ? { ...c, score: maxScore + 0.05 } : c,
-              );
-              return { ...s, candidates: JSON.stringify(updated) };
-            } catch { return s; }
-          });
-          await api(`/scenarios/${id}`, {
-            method: 'PATCH',
-            body: JSON.stringify({ steps: patchedSteps }),
-          });
-        }
-
-        runCtx.current = null;
-        navigate('/runs');
-      } catch (e) {
-        setError(`Koşum bitti ama sonuç kaydedilemedi: ${e.message}`);
+    const onMessage = (event) => {
+      if (event.source !== window || event.data?.type !== 'TESTFLOW_RUN_DONE') return;
+      if (runDoneResolver.current) {
+        runDoneResolver.current(event.data);
+        runDoneResolver.current = null;
       }
     };
     window.addEventListener('message', onMessage);
     return () => window.removeEventListener('message', onMessage);
-  }, [id, navigate, steps, dataSets]);
+  }, []);
+
+  // Healing kalıcılaştırma: verilen adımlar üzerinde uygular, güncel adımları döner
+  const persistHealing = async (currentSteps, results) => {
+    const healedResults = results.filter((r) => r.healed && r.healedStrategy);
+    if (healedResults.length === 0) return currentSteps;
+    const patchedSteps = currentSteps.map((s) => {
+      const hr = healedResults.find(
+        (r) => (r.stepId && r.stepId === s.id) || r.orderIndex === s.orderIndex,
+      );
+      if (!hr) return s;
+      try {
+        const cands = JSON.parse(s.candidates || '[]');
+        const maxScore = Math.max(...cands.map((c) => c.score ?? 0), 0);
+        const updated = cands.map((c) =>
+          c.strategy === hr.healedStrategy ? { ...c, score: maxScore + 0.05 } : c,
+        );
+        return { ...s, candidates: JSON.stringify(updated) };
+      } catch { return s; }
+    });
+    const updated = await api(`/scenarios/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ steps: patchedSteps }),
+    });
+    setSteps(updated.steps || []);
+    return updated.steps || patchedSteps;
+  };
 
   // Anahtarlar tipleriyle: upload adımları dosya anahtarlarına, diğerleri metin anahtarlarına bağlanır
   const allEntries = dataSets.flatMap((ds) => {
@@ -160,57 +142,90 @@ export default function ScenarioDetail() {
     } catch (e) { setError(e.message); }
   };
 
-  // ---------- Koşum ----------
-  const startRun = () => {
-    setError('');
+  // ---------- Koşum (data-driven: seçilen her veri setiyle sırayla) ----------
+  const resolveSteps = (currentSteps, dataSetId) => {
+    const set = dataSetId ? dataSets.find((d) => d.id === dataSetId) : null;
+    const entries = set ? JSON.parse(set.entries) : [];
+    const byKey = Object.fromEntries(entries.map((e) => [e.key, e]));
+    return currentSteps.map((s) => {
+      if (!s.dataBinding) return s;
+      const binding = JSON.parse(s.dataBinding);
+      const entry = byKey[binding.dataSetKey];
+      if (entry === undefined) {
+        throw new Error(`"${binding.dataSetKey}" anahtarı ${set ? `"${set.name}" setinde` : 'seçili sette'} yok.`);
+      }
+      return { ...s, value: entry.value, ...(entry.type === 'file' ? { fileName: entry.fileName } : {}) };
+    });
+  };
 
-    // Test verisi çözümü: dataBinding olan adımların değerini setten doldur
-    let resolvedSteps;
+  const resolveStartUrl = () => {
+    if (!runEnv) return startUrl || scenario.startUrl;
+    const env = environments.find((en) => en.id === runEnv);
     try {
-      const set = runDataSet ? dataSets.find((d) => d.id === runDataSet) : null;
-      const entries = set ? JSON.parse(set.entries) : [];
-      const byKey = Object.fromEntries(entries.map((e) => [e.key, e]));
+      const u = new URL(startUrl || scenario.startUrl);
+      return new URL(env.baseUrl).origin + u.pathname + u.search + u.hash;
+    } catch { return env.baseUrl; }
+  };
 
-      resolvedSteps = steps.map((s) => {
-        if (!s.dataBinding) return s;
-        const binding = JSON.parse(s.dataBinding);
-        const entry = byKey[binding.dataSetKey];
-        const val = entry?.value;
-        if (val === undefined) {
-          throw new Error(`"${binding.dataSetKey}" anahtarı seçilen test veri setinde yok. ` +
-            (runDataSet ? 'Doğru seti seçtiğinizden emin olun.' : 'Koşum için bir test veri seti seçin.'));
-        }
-        return { ...s, value: val, ...(entry.type === 'file' ? { fileName: entry.fileName } : {}) };
-      });
-    } catch (e) {
-      setError(e.message);
+  const startRun = async () => {
+    setError('');
+    const hasBindingNow = steps.some((s) => s.dataBinding);
+    const setList = runDataSets.size > 0 ? [...runDataSets] : [null];
+    if (hasBindingNow && setList.includes(null)) {
+      setError('Bu senaryoda test verisine bağlı adımlar var — en az bir veri seti seçin.');
       return;
     }
 
-    // Ortam seçiliyse başlangıç URL'inin origin'ini ortamın baseUrl'i ile değiştir
-    let startUrl = scenario.startUrl;
-    if (runEnv) {
-      const env = environments.find((en) => en.id === runEnv);
+    setShowRun(false);
+    setRunning(true);
+    setProgress({ current: 0, total: setList.length, results: [] });
+
+    let currentSteps = steps;
+    const url = resolveStartUrl();
+
+    for (let i = 0; i < setList.length; i++) {
+      const dataSetId = setList[i];
+      const setName = dataSetId
+        ? (dataSets.find((d) => d.id === dataSetId)?.name ?? dataSetId)
+        : 'Veri setsiz';
+      setProgress((p) => ({ ...p, current: i + 1 }));
+
+      let status;
       try {
-        const u = new URL(scenario.startUrl);
-        const base = new URL(env.baseUrl);
-        startUrl = base.origin + u.pathname + u.search + u.hash;
-      } catch { startUrl = env.baseUrl; }
+        const resolved = resolveSteps(currentSteps, dataSetId);
+        const done = new Promise((resolve) => { runDoneResolver.current = resolve; });
+        window.postMessage({
+          type: 'TESTFLOW_START_RUN',
+          startUrl: url,
+          steps: resolved,
+          runContext: { scenarioId: id, environmentId: runEnv || null, testDataSetId: dataSetId },
+        }, '*');
+
+        const data = await done;
+        const results = data.results || [];
+        status = data.aborted || results.some((r) => r.status === 'failed') ? 'failed' : 'passed';
+        await api('/runs', {
+          method: 'POST',
+          body: JSON.stringify({
+            scenarioId: id,
+            environmentId: runEnv || null,
+            testDataSetId: dataSetId,
+            status,
+            startedAt: data.startedAt,
+            finishedAt: data.finishedAt,
+            stepResults: results,
+          }),
+        });
+        // Healing kalıcılaştır — sonraki set güncel locator'larla koşsun
+        currentSteps = await persistHealing(currentSteps, results);
+      } catch (e) {
+        status = `hata (${e.message})`;
+      }
+      setProgress((p) => ({ ...p, results: [...p.results, { setName, status }] }));
     }
 
-    runCtx.current = {
-      scenarioId: id,
-      environmentId: runEnv || null,
-      testDataSetId: runDataSet || null,
-    };
-    setRunning(true);
-    setShowRun(false);
-    window.postMessage({
-      type: 'TESTFLOW_START_RUN',
-      startUrl,
-      steps: resolvedSteps,
-      runContext: runCtx.current,
-    }, '*');
+    setRunning(false);
+    navigate('/runs');
   };
 
   if (!scenario) return <div className="muted">Yükleniyor…</div>;
@@ -290,33 +305,60 @@ export default function ScenarioDetail() {
 
       {showRun && (
         <div className="card" style={{ marginBottom: 16 }}>
-          <div className="row" style={{ marginBottom: 10 }}>
-            <select value={runEnv} onChange={(e) => setRunEnv(e.target.value)} style={{ width: 240 }}>
+          <div className="row" style={{ marginBottom: 12 }}>
+            <select value={runEnv} onChange={(e) => setRunEnv(e.target.value)} style={{ width: 260 }}>
               <option value="">Ortam: kayıttaki URL</option>
               {environments.map((en) => <option key={en.id} value={en.id}>{en.name} ({en.baseUrl})</option>)}
             </select>
-            <select value={runDataSet} onChange={(e) => setRunDataSet(e.target.value)} style={{ width: 240 }}>
-              <option value="">Test verisi: yok</option>
-              {dataSets.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
-            </select>
-            <button onClick={startRun}>Başlat</button>
+            <button onClick={startRun}>
+              {runDataSets.size > 1 ? `${runDataSets.size} veri setiyle koş` : 'Başlat'}
+            </button>
           </div>
-          <div className="muted" style={{ fontSize: 12, marginTop: 8 }}>
-            💡 Temiz oturum için: koşumlar gizli pencerede yapılır — bunun için bir kez
+
+          <div className="muted" style={{ fontSize: 12, marginBottom: 6 }}>
+            Test verisi — birden fazla seçerseniz senaryo her setle ayrı ayrı koşar (data-driven):
+          </div>
+          <div style={{ marginBottom: 10 }}>
+            {dataSets.length === 0 && <span className="muted" style={{ fontSize: 13 }}>Tanımlı veri seti yok.</span>}
+            {dataSets.map((d) => (
+              <label key={d.id} className="row" style={{ gap: 6, marginBottom: 4, fontSize: 13 }}>
+                <input type="checkbox" checked={runDataSets.has(d.id)}
+                       onChange={() => setRunDataSets((prev) => {
+                         const next = new Set(prev);
+                         next.has(d.id) ? next.delete(d.id) : next.add(d.id);
+                         return next;
+                       })}
+                       style={{ width: 'auto' }} />
+                {d.name}
+              </label>
+            ))}
+          </div>
+
+          <div className="muted" style={{ fontSize: 12 }}>
+            💡 Temiz oturum için: koşumlar gizli pencerede yapılır — bir kez
             <code>chrome://extensions</code> → TestFlow Recorder → Ayrıntılar → <b>Gizli modda izin ver</b>'i açın.
-            İzin yoksa koşum normal sekmede yapılır ve önceki oturum (login) açık kalabilir.
           </div>
-          {hasBinding && !runDataSet && (
-            <div className="muted" style={{ fontSize: 12 }}>
-              ⚠️ Bu senaryoda test verisine bağlı adımlar var — koşum için bir veri seti seçmelisiniz.
+          {hasBinding && runDataSets.size === 0 && (
+            <div className="muted" style={{ fontSize: 12, marginTop: 4 }}>
+              ⚠️ Bu senaryoda test verisine bağlı adımlar var — en az bir veri seti seçin.
             </div>
           )}
         </div>
       )}
 
-      {running && (
-        <div className="badge queued" style={{ padding: '8px 14px', marginBottom: 16, display: 'block' }}>
-          ▶ Koşum sürüyor — açılan sekmede adımlar oynatılıyor, bitince sonuçlar otomatik kaydedilecek.
+      {progress && (
+        <div className="card" style={{ marginBottom: 16, padding: 14 }}>
+          <div style={{ marginBottom: progress.results.length ? 8 : 0 }}>
+            {running
+              ? <>▶ Koşum {progress.current}/{progress.total} — açılan pencerede adımlar oynatılıyor…</>
+              : <>Tamamlandı — {progress.results.filter((r) => r.status === 'passed').length}/{progress.total} passed</>}
+          </div>
+          {progress.results.map((r, i) => (
+            <div key={i} className="row" style={{ fontSize: 13, marginBottom: 4 }}>
+              <span className={`badge ${r.status === 'passed' ? 'passed' : 'failed'}`}>{r.status}</span>
+              <span>{r.setName}</span>
+            </div>
+          ))}
         </div>
       )}
 
