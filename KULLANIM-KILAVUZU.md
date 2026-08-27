@@ -136,8 +136,9 @@ Koşum kayıtları satırdaki **Sil** ile silinebilir.
 
 ## 9. Self-Healing (Kendi Kendini Onarma)
 
-Kayıt sırasında her öğe için 7'ye kadar farklı tanımlayıcı saklanır
-(id, data-testid, name, aria-label, placeholder, metin, CSS yolu).
+Kayıt sırasında her öğe için 8'e kadar farklı tanımlayıcı saklanır
+(id, data-testid, name, aria-label, placeholder, link adresi, CSS yolu,
+görünen metin — metin en kırılgan olduğu için bilinçli olarak son çaredir).
 Uygulama güncellenip bir tanımlayıcı değişse bile (örn. id değişti)
 koşum diğer adaylarla öğeyi bulmaya devam eder — adım geçer ve
 **healed ✓** işaretlenir.

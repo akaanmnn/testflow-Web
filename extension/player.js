@@ -46,6 +46,10 @@
           return pool.find((n) => !pool.some((m) => m !== n && n.contains(m))) || pool[0];
         }
         case 'css': return document.querySelector(c.value);
+        case 'href': {
+          const v = String(c.value).replace(/"/g, '\\"');
+          return document.querySelector(`a[href="${v}"]`);
+        }
         default: return null;
       }
     } catch { return null; }

@@ -35,6 +35,8 @@
 
   function buildCandidates(el) {
     const candidates = [];
+    // Yapısal/anlamsal adaylar önce — metin EN SON çare (skoru en düşük):
+    // buton/link metinleri sık değişir ("Giriş" → "Oturum Aç") ve otomasyonu kırar.
     if (el.id) candidates.push({ strategy: 'id', value: el.id, score: 1.0 });
     if (el.getAttribute('data-testid'))
       candidates.push({ strategy: 'data-testid', value: el.getAttribute('data-testid'), score: 0.98 });
@@ -42,11 +44,14 @@
     if (el.getAttribute('aria-label'))
       candidates.push({ strategy: 'aria-label', value: el.getAttribute('aria-label'), score: 0.85 });
     if (el.placeholder) candidates.push({ strategy: 'placeholder', value: el.placeholder, score: 0.8 });
+    // Link adresi metinden çok daha stabildir
+    if (el.tagName === 'A' && el.getAttribute('href') && el.getAttribute('href') !== '#')
+      candidates.push({ strategy: 'href', value: el.getAttribute('href'), score: 0.75 });
+    const css = cssPath(el);
+    if (css) candidates.push({ strategy: 'css', value: css, score: 0.6 });
     const text = (el.innerText || '').trim().slice(0, 60);
     if (text && text.length >= 2 && ['BUTTON', 'A', 'LABEL', 'SPAN', 'DIV'].includes(el.tagName))
-      candidates.push({ strategy: 'text', value: text, score: 0.7 });
-    const css = cssPath(el);
-    if (css) candidates.push({ strategy: 'css', value: css, score: 0.5 });
+      candidates.push({ strategy: 'text', value: text, score: 0.45 });
     return candidates;
   }
 

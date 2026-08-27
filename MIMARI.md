@@ -153,8 +153,9 @@ kaybolur, aynı adım yeni sayfada tekrar aranır ve sahte "element bulunamadı"
    | name | 0.90 |
    | aria-label | 0.85 |
    | placeholder | 0.80 |
-   | görünen metin | 0.70 |
-   | CSS yolu (≤6 seviye, nth-of-type) | 0.50 |
+   | href (linklerde) | 0.75 |
+   | CSS yolu (≤6 seviye, nth-of-type) | 0.60 |
+   | görünen metin — **bilinçli olarak son çare** (metinler sık değişir) | 0.45 |
 
 4. **Hassas alanlar:** `type=password` veya ad/id'sinde şifre kalıbı geçen
    alanların değeri anında `***`'a çevrilir — gerçek değer eklentiden dışarı
