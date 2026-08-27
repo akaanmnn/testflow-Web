@@ -235,6 +235,8 @@
         await reportResult(stepIndex, step, r);
         return r;
       } else if (step.action === 'select') {
+        let via = null;
+        try { via = JSON.parse(step.meta || '{}').via; } catch {}
         if (ifEmpty) {
           const locked = found.el.disabled;
           const current = String(found.el.value ?? '').trim();
@@ -248,6 +250,17 @@
           }
         }
         setNativeValue(found.el, step.value);
+        if (via === 'select2') {
+          // Select2 uygulamaları satır ekleme gibi işleri jQuery'ye özel
+          // olaylara (select2:select) bağlar; native change onları görmez.
+          // Sayfanın kendi dünyasında jQuery olaylarını da tetikleriz.
+          found.el.setAttribute('data-tf-s2', '1');
+          await chrome.runtime.sendMessage({
+            type: 'EXEC_JS_HREF',
+            code: `(function(){var el=document.querySelector('[data-tf-s2]');if(!el)return;el.removeAttribute('data-tf-s2');if(window.jQuery){var $el=window.jQuery(el);try{$el.trigger('change');}catch(e){}try{var d=($el.select2&&$el.select2('data'))||[];$el.trigger({type:'select2:select',params:{data:d[0]||{id:el.value}}});}catch(e){}}})();`,
+          });
+          await sleep(400); // tetiklenen satır ekleme vb. için kısa nefes
+        }
         const r = { status: 'passed', healed, healedStrategy, screenshot: await captureScreenshot() };
         await reportResult(stepIndex, step, r);
         return r;

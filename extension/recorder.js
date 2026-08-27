@@ -199,6 +199,10 @@
 
     // Dosya seçimi: içerik kaydedilmez (koşumda test verisinden gelir),
     // sadece upload adımı + seçilen dosyanın adı not edilir.
+    // Checkbox/radio: toggle işini click adımı yapar; change'in ürettiği
+    // sahte fill("on") adımı gereksiz ve yanıltıcıdır — kaydetme.
+    if (el.type === 'checkbox' || el.type === 'radio') return;
+
     if (el.type === 'file') {
       const fileName = el.files && el.files[0] ? el.files[0].name : null;
       sendStep({
