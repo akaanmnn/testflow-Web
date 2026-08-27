@@ -5,6 +5,7 @@ import com.testflow.web.dto.CommonDtos.TestDataSetDto;
 import com.testflow.web.entity.TestDataSet;
 import com.testflow.web.repository.TestDataSetRepository;
 import com.testflow.web.security.AuthenticatedUser;
+import com.testflow.web.service.WorkspaceService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
@@ -18,9 +19,28 @@ import java.util.List;
 public class TestDataSetController {
 
     private final TestDataSetRepository dataSets;
+    private final WorkspaceService workspaceService;
 
-    public TestDataSetController(TestDataSetRepository dataSets) {
+    public TestDataSetController(TestDataSetRepository dataSets, WorkspaceService workspaceService) {
         this.dataSets = dataSets;
+        this.workspaceService = workspaceService;
+    }
+
+    public record CopyRequest(String targetProjectId) {}
+
+    @PostMapping("/{id}/copy")
+    @ResponseStatus(HttpStatus.CREATED)
+    public TestDataSetDto copy(@PathVariable String id,
+                               @RequestBody CopyRequest body,
+                               HttpServletRequest req) {
+        AuthenticatedUser user = CurrentUser.from(req);
+        TestDataSet src = find(id, user);
+        workspaceService.assertMember(body.targetProjectId(), user.username());
+        TestDataSet dst = new TestDataSet();
+        dst.setName(src.getName());
+        dst.setEntries(src.getEntries());
+        dst.setWorkspaceId(body.targetProjectId());
+        return toDto(dataSets.save(dst));
     }
 
     @GetMapping

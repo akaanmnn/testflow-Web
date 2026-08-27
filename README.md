@@ -14,9 +14,12 @@ backend/    Spring Boot 3 (Java 17+) + H2 in-memory + Spring Security LDAP + JWT
 frontend/   React 18 + Vite
 ```
 
-- **Auth:** AD kullanıcı adı + şifre → LDAP bind → JWT
-- **Workspace:** Kullanıcının AD grubu = workspace. Farklı gruplar birbirinin
-  verisini göremez. Grup için workspace yoksa ilk girişte otomatik oluşur.
+- **Auth:** AD kullanıcı adı + şifre → LDAP bind → JWT (AD yalnızca kimlik doğrular)
+- **Projeler:** Her kullanıcıya ilk girişte bir **Kişisel Alan** açılır.
+  Kullanıcılar proje oluşturup AD kullanıcı adıyla üye ekler; bir kullanıcı
+  birden fazla projede olabilir, sol üstten proje değiştirir. Farklı projeler
+  birbirinin verisini göremez. Senaryolar ve test veri setleri üyesi olunan
+  projelere **kopyalanarak** paylaşılır (bağımsız kopya).
 - **Veritabanı:** H2 in-memory (`create-drop`) — kurulum gerektirmez, her
   restart temiz başlar. Kalıcılık gerekince `application.properties` içinden
   dosya tabanlı H2 veya PostgreSQL'e geçilebilir.

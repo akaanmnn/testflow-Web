@@ -6,5 +6,5 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import java.util.Optional;
 
 public interface WorkspaceRepository extends JpaRepository<Workspace, String> {
-    Optional<Workspace> findByLdapGroup(String ldapGroup);
+    Optional<Workspace> findByOwnerUsernameAndPersonalTrue(String ownerUsername);
 }

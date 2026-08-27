@@ -5,6 +5,7 @@ import com.testflow.web.entity.Scenario;
 import com.testflow.web.entity.Step;
 import com.testflow.web.repository.ScenarioRepository;
 import com.testflow.web.security.AuthenticatedUser;
+import com.testflow.web.service.WorkspaceService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
@@ -19,9 +20,45 @@ import java.util.List;
 public class ScenarioController {
 
     private final ScenarioRepository scenarios;
+    private final WorkspaceService workspaceService;
 
-    public ScenarioController(ScenarioRepository scenarios) {
+    public ScenarioController(ScenarioRepository scenarios, WorkspaceService workspaceService) {
         this.scenarios = scenarios;
+        this.workspaceService = workspaceService;
+    }
+
+    public record CopyRequest(String targetProjectId) {}
+
+    /** Senaryoyu (adımlarıyla) üyesi olunan başka bir projeye bağımsız kopya olarak taşır. */
+    @PostMapping("/{id}/copy")
+    @ResponseStatus(HttpStatus.CREATED)
+    @Transactional
+    public ScenarioDetail copy(@PathVariable String id,
+                               @RequestBody CopyRequest body,
+                               HttpServletRequest req) {
+        AuthenticatedUser user = CurrentUser.from(req);
+        Scenario src = find(id, user);
+        workspaceService.assertMember(body.targetProjectId(), user.username());
+
+        Scenario dst = new Scenario();
+        dst.setName(src.getName());
+        dst.setStartUrl(src.getStartUrl());
+        dst.setTags(src.getTags());
+        dst.setWorkspaceId(body.targetProjectId());
+        dst.setFolderId(null); // klasörler projeye özgüdür
+        for (Step s : src.getSteps()) {
+            Step copy = new Step();
+            copy.setScenario(dst);
+            copy.setOrderIndex(s.getOrderIndex());
+            copy.setAction(s.getAction());
+            copy.setCandidates(s.getCandidates());
+            copy.setValue(s.getValue());
+            copy.setDataBinding(s.getDataBinding());
+            copy.setSensitive(s.isSensitive());
+            copy.setMeta(s.getMeta());
+            dst.getSteps().add(copy);
+        }
+        return toDetail(scenarios.save(dst));
     }
 
     @GetMapping

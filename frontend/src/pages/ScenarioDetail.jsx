@@ -12,6 +12,8 @@ export default function ScenarioDetail() {
   const [startUrl, setStartUrl] = useState('');
   const [folderId, setFolderId] = useState('');
   const [manualUrl, setManualUrl] = useState(false);
+  const [projects, setProjects] = useState([]);
+  const [copied, setCopied] = useState(false);
   const [folders, setFolders] = useState([]);
   const [dataSets, setDataSets] = useState([]);
   const [environments, setEnvironments] = useState([]);
@@ -37,6 +39,7 @@ export default function ScenarioDetail() {
         setFolders(f);
       })
       .catch((e) => setError(e.message));
+    api('/projects').then(setProjects).catch(() => {});
   }, [id]);
 
   // Koşum sonucu dinleyicisi (eklentiden)
@@ -226,6 +229,25 @@ export default function ScenarioDetail() {
                onFocus={(e) => { e.target.style.borderColor = 'var(--border)'; e.target.style.background = 'var(--surface)'; }}
                onBlur={(e) => { e.target.style.borderColor = 'transparent'; e.target.style.background = 'transparent'; }} />
         <div className="row">
+          <select value="" onChange={async (e) => {
+                    const pid = e.target.value;
+                    if (!pid) return;
+                    setError('');
+                    try {
+                      await api(`/scenarios/${id}/copy`, {
+                        method: 'POST',
+                        body: JSON.stringify({ targetProjectId: pid }),
+                      });
+                      setCopied(true);
+                      setTimeout(() => setCopied(false), 2500);
+                    } catch (err) { setError(err.message); }
+                  }}
+                  style={{ width: 170 }}>
+            <option value="">{copied ? 'Kopyalandı ✓' : 'Kopyala →'}</option>
+            {projects.filter((p) => p.id !== scenario?.workspaceId && !p.active).map((p) => (
+              <option key={p.id} value={p.id}>{p.personal ? '👤 ' : '📁 '}{p.name}</option>
+            ))}
+          </select>
           <button className="danger" onClick={del}>Sil</button>
           <button className="ghost" onClick={() => setShowRun(!showRun)} disabled={running || steps.length === 0}>
             {running ? '▶ Koşuyor…' : '▶ Koş'}

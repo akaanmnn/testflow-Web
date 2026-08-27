@@ -35,15 +35,11 @@ public class AuthController {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Kullanıcı adı veya şifre hatalı.");
         }
 
-        String group = ldapAuth.findUserGroup(req.username());
-        if (group == null) {
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN,
-                    "Hesabınız herhangi bir TestFlow grubuna atanmamış. IT ile iletişime geçin.");
-        }
-
-        Workspace ws = workspaceService.resolveByLdapGroup(group);
-        String token = jwtService.generate(user.username(), user.displayName(), ws.getId(), ws.getName());
+        // AD grubu şartı kaldırıldı: her kullanıcıya ilk girişte Kişisel Alan açılır,
+        // projeler ve üyelikler uygulama içinde yönetilir.
+        Workspace personal = workspaceService.getOrCreatePersonal(user.username(), user.displayName());
+        String token = jwtService.generate(user.username(), user.displayName(), personal.getId(), personal.getName());
         return new LoginResponse(token,
-                new UserInfo(user.username(), user.displayName(), ws.getId(), ws.getName()));
+                new UserInfo(user.username(), user.displayName(), personal.getId(), personal.getName()));
     }
 }
