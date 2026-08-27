@@ -15,11 +15,15 @@ export default function Help() {
         TestFlow ile kod yazmadan web testleri kaydedin, düzenleyin ve koşun.
       </p>
 
-      <S title="1 · Giriş ve çalışma alanı">
+      <S title="1 · Giriş, Kişisel Alan ve projeler">
         Şirket (AD) kullanıcı adı ve şifrenizle girersiniz; kayıt olmak yoktur.
-        Hangi AD grubundaysanız o grubun çalışma alanına düşersiniz — aynı grup
-        senaryoları ve verileri paylaşır, <b>farklı gruplar birbirini göremez</b>.
-        "Gruba atanmamış" hatasında IT'den ilgili gruba eklenmenizi isteyin.
+        İlk girişte size özel bir <b>Kişisel Alan</b> açılır. Ekiple çalışmak
+        için sol üstteki listeden <b>＋ Yeni proje</b> oluşturun ve
+        <b> Proje Üyeleri</b> sayfasından arkadaşlarınızı AD kullanıcı adıyla
+        ekleyin. Sol üstten projeler arasında geçiş yapılır;
+        <b> farklı projeler birbirinin verisini göremez</b>. Senaryolar
+        ("Kopyala →" / "Çoğalt") ve test veri setleri projelere <b>bağımsız
+        kopya</b> olarak paylaşılır.
       </S>
 
       <S title="2 · Eklenti kurulumu (bir kez)">
@@ -79,6 +83,8 @@ export default function Help() {
         izin kapalıysa sistem hedef sitenin çerezlerini temizleyip normal sekmede
         koşar. Beklemeler: öğeler 5sn, doğrulamalar 12sn, opsiyonel adımlar 3sn.
         <br /><br />
+        <b>Data-driven:</b> koşum panelinde birden fazla veri seti işaretlerseniz
+        senaryo her setle ayrı ayrı koşar, her set ayrı kayıt olur.{' '}
         <b>Toplu koşum:</b> Senaryolar'da kutucuklarla seçin → ▶ Toplu Koş —
         sırayla koşar, canlı ilerleme ve özet gösterilir.{' '}
         <b>Tekrar koşum:</b> Koşumlar'da passed olmayanların yanındaki ↻,

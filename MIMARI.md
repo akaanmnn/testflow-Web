@@ -41,16 +41,25 @@ koşum yoktur (bkz. §9).
 
 ## 2. Kimlik ve İzolasyon
 
-**Giriş akışı:**
+**Giriş akışı (proje modeli):**
 1. `POST /api/auth/login` (kullanıcı adı + şifre)
 2. `LdapAuthService.authenticate`: kullanıcının DN'i ile LDAP **bind**
-   denemesi — şifre yanlışsa exception → 401
-3. `findUserGroup`: kullanıcının üyesi olduğu grup bulunur
-   (`ou=groups` altında `member` araması)
-4. `WorkspaceService.resolveByLdapGroup`: gruba karşılık gelen workspace
-   getirilir; **yoksa ilk girişte otomatik oluşturulur** (AD grup = workspace)
-5. JWT üretilir; claim'ler: `sub` (kullanıcı adı), `displayName`,
-   `workspaceId`, `workspaceName`. Süre: 7 gün (yapılandırılabilir)
+   denemesi — şifre yanlışsa exception → 401. **AD yalnızca kimlik doğrular;
+   grup eşlemesi yoktur.**
+3. `WorkspaceService.getOrCreatePersonal`: kullanıcının **Kişisel Alan**'ı
+   getirilir; ilk girişte otomatik oluşturulup üyeliği yazılır
+4. JWT üretilir; claim'ler: `sub`, `displayName`, `workspaceId` (aktif
+   proje), `workspaceName`. Süre: 7 gün
+5. Proje değiştirme: `POST /api/projects/{id}/switch` üyelik doğrulayıp
+   **yeni JWT** döner — tüm controller'lar değişmeden çalışır çünkü
+   workspaceId'yi token'dan okurlar
+
+**Proje/üyelik modeli:** `Workspace` (name, ownerUsername, personal) +
+`WorkspaceMember` (workspaceId, username, unique). Üye ekleme LDAP'ta
+kullanıcı varlığını doğrular (`LdapAuthService.findUser`). Paylaşım,
+`/scenarios/{id}/copy` ve `/test-data-sets/{id}/copy` ile hedef projeye
+**bağımsız kopya** üretir (üyelik doğrulamalı); aynı projeye kopya
+"(kopya)" ekiyle çoğaltmadır.
 
 **İzolasyon modeli:** Her istek `JwtAuthFilter`'dan geçer; token'dan
 `AuthenticatedUser` üretilip request attribute'una konur. **Her repository

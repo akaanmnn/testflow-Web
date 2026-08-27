@@ -167,6 +167,16 @@
     } catch {}
     const failStatus = optional ? 'skipped' : 'failed';
     const failPrefix = optional ? 'Opsiyonel adım atlandı — ' : '';
+
+    // wait: element gerektirmez — belirtilen saniye kadar bekle (üst sınır 60sn)
+    if (step.action === 'wait') {
+      const secs = Math.min(Math.max(parseFloat(step.value) || 1, 0.1), 60);
+      await sleep(secs * 1000);
+      const r = { status: 'passed', healed: false, healedStrategy: null };
+      await reportResult(stepIndex, step, r);
+      return r;
+    }
+
     const candidates = JSON.parse(step.candidates || '[]');
     // Doğrulama adımları sayfa geçişi/yavaş yükleme sonrasına denk gelir —
     // onlara daha uzun bekleme tanınır (12sn). Opsiyonel adımlar (örn. bazen
@@ -285,6 +295,22 @@
         found.el.dispatchEvent(new Event('change', { bubbles: true }));
         const r = { status: 'passed', healed, healedStrategy, screenshot: await captureScreenshot() };
         await reportResult(stepIndex, step, r);
+        return r;
+      } else if (step.action === 'press') {
+        const key = (step.value || 'Enter').trim() || 'Enter';
+        // Rapor ÖNCE: Enter form submit'i tetikleyip sayfayı değiştirebilir
+        const r = { status: 'passed', healed, healedStrategy, screenshot: await captureScreenshot() };
+        await reportResult(stepIndex, step, r);
+        found.el.focus();
+        const kOpts = { key, code: key, bubbles: true, cancelable: true };
+        const notPrevented = found.el.dispatchEvent(new KeyboardEvent('keydown', kOpts));
+        found.el.dispatchEvent(new KeyboardEvent('keyup', kOpts));
+        // Native davranış taklidi: site keydown'ı yutmadıysa ve alan bir
+        // formdaysa Enter form submit'i demektir (sentetik tuş bunu tetiklemez)
+        if (key === 'Enter' && notPrevented && found.el.form) {
+          try { found.el.form.requestSubmit(); }
+          catch { try { found.el.form.submit(); } catch {} }
+        }
         return r;
       } else if (step.action === 'assert-visible') {
         // Element bulunduysa (findElement görünürlük kontrolü yapıyor) geçer

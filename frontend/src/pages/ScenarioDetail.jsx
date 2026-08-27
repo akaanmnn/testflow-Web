@@ -1,8 +1,8 @@
 import { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { api } from '../lib/api';
+import { api, getUser } from '../lib/api';
 
-const ACTIONS = ['goto', 'click', 'fill', 'select', 'upload', 'assert-text', 'assert-visible', 'wait'];
+const ACTIONS = ['goto', 'click', 'fill', 'select', 'upload', 'press', 'assert-text', 'assert-visible', 'wait'];
 
 export default function ScenarioDetail() {
   const { id } = useParams();
@@ -259,10 +259,20 @@ export default function ScenarioDetail() {
                   }}
                   style={{ width: 170 }}>
             <option value="">{copied ? 'Kopyalandı ✓' : 'Kopyala →'}</option>
-            {projects.filter((p) => p.id !== scenario?.workspaceId && !p.active).map((p) => (
+            {projects.filter((p) => !p.active).map((p) => (
               <option key={p.id} value={p.id}>{p.personal ? '👤 ' : '📁 '}{p.name}</option>
             ))}
           </select>
+          <button className="ghost" onClick={async () => {
+            setError('');
+            try {
+              const copy = await api(`/scenarios/${id}/copy`, {
+                method: 'POST',
+                body: JSON.stringify({ targetProjectId: getUser().workspaceId }),
+              });
+              navigate(`/scenarios/${copy.id}`);
+            } catch (err) { setError(err.message); }
+          }}>Çoğalt</button>
           <button className="danger" onClick={del}>Sil</button>
           <button className="ghost" onClick={() => setShowRun(!showRun)} disabled={running || steps.length === 0}>
             {running ? '▶ Koşuyor…' : '▶ Koş'}

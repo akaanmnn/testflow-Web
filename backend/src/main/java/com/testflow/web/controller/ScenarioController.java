@@ -41,11 +41,13 @@ public class ScenarioController {
         workspaceService.assertMember(body.targetProjectId(), user.username());
 
         Scenario dst = new Scenario();
-        dst.setName(src.getName());
+        // Aynı projeye çoğaltmada isim çakışmasın
+        boolean sameProject = body.targetProjectId().equals(src.getWorkspaceId());
+        dst.setName(sameProject ? src.getName() + " (kopya)" : src.getName());
         dst.setStartUrl(src.getStartUrl());
         dst.setTags(src.getTags());
         dst.setWorkspaceId(body.targetProjectId());
-        dst.setFolderId(null); // klasörler projeye özgüdür
+        dst.setFolderId(sameProject ? src.getFolderId() : null); // klasörler projeye özgüdür
         for (Step s : src.getSteps()) {
             Step copy = new Step();
             copy.setScenario(dst);

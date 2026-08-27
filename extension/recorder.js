@@ -247,6 +247,22 @@
   // Tıklama olunca fill zinciri kırılır (araya tıklama girdiyse yeni fill ayrı adımdır)
   document.addEventListener('click', () => { lastFillKey = null; }, true);
 
+  // Enter tuşu: form gönderen Enter'lar adım olarak kaydedilir.
+  // setTimeout(0): Enter'ın tetiklediği change (fill adımı) önce kaydedilsin,
+  // press adımı ondan SONRA gelsin — koşum sırası doğru olur.
+  document.addEventListener('keydown', (e) => {
+    if (assertMode || barEl.contains(e.target)) return;
+    if (e.key !== 'Enter') return;
+    const el = e.target;
+    if (!['INPUT', 'TEXTAREA'].includes(el.tagName) || el.type === 'file') return;
+    const cands = JSON.stringify(buildCandidates(el));
+    const meta = JSON.stringify({ tag: el.tagName.toLowerCase(), url: location.href });
+    setTimeout(() => {
+      sendStep({ action: 'press', candidates: cands, value: 'Enter', sensitive: false, meta });
+      lastFillKey = null;
+    }, 0);
+  }, true);
+
   // ---------- Kayıt çubuğu ----------
   const barEl = document.createElement('div');
   barEl.id = '__testflow_bar';

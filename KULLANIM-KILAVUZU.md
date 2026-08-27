@@ -5,15 +5,19 @@ sağlar. Bu kılavuz tüm özellikleri kullanım sırasına göre anlatır.
 
 ---
 
-## 1. Giriş ve Çalışma Alanı
+## 1. Giriş ve Projeler
 
 - **Giriş:** Şirket (Active Directory) kullanıcı adı ve şifrenizle giriş
-  yapılır. Kayıt olmaya gerek yoktur; hesabınız yoksa IT'ye başvurun.
-- **Çalışma alanı (workspace):** Hangi AD grubundaysanız o grubun çalışma
-  alanına düşersiniz. Aynı gruptaki herkes senaryoları, test verilerini ve
-  koşumları paylaşır; **farklı gruplar birbirinin verisini göremez.**
-- Girişte "Hesabınız herhangi bir TestFlow grubuna atanmamış" hatası
-  alırsanız IT'den ilgili AD grubuna eklenmenizi isteyin.
+  yapılır. Kayıt olmaya gerek yoktur.
+- **Kişisel Alan:** İlk girişte size özel bir alan açılır — yalnızca siz
+  görürsünüz. Denemelerinizi burada yapabilirsiniz.
+- **Projeler:** Ekiple çalışmak için sol üstteki listeden **＋ Yeni proje**
+  oluşturun ve **Proje Üyeleri** sayfasından arkadaşlarınızı AD kullanıcı
+  adıyla ekleyin. Bir kullanıcı birden fazla projede olabilir; sol üstten
+  proje değiştirilir. **Farklı projeler birbirinin verisini göremez.**
+- **Paylaşım:** Senaryolar ("Kopyala →" / "Çoğalt") ve test veri setleri
+  üyesi olduğunuz projelere **bağımsız kopya** olarak kopyalanır — kopyayı
+  değiştirmek orijinali etkilemez.
 
 ## 2. Tarayıcı Eklentisi (bir kez kurulur)
 
@@ -68,8 +72,9 @@ Senaryo detayında:
 | **ops.** | Öğe bulunamazsa/adım başarısız olursa koşum kesilmez, adım atlanır | Bazen gelen modallar, koşullu alanlar |
 
 **Aksiyon türleri:** `click` (tıkla), `fill` (yaz), `select` (listeden seç),
-`upload` (dosya yükle), `assert-text` (metin görünmeli), `assert-visible`
-(öğe görünmeli).
+`upload` (dosya yükle), `press` (tuş bas — kayıtta Enter otomatik yakalanır),
+`wait` (değerdeki saniye kadar bekle — yavaş yüklenen ekranlar için elle
+eklenir), `assert-text` (metin görünmeli), `assert-visible` (öğe görünmeli).
 
 ## 5. Test Verileri
 
@@ -112,6 +117,11 @@ silinir. Gizli mod şirket politikasıyla kapalıysa sistem otomatik olarak
 
 **Koşum sırasında beklemeler:** Öğeler 5 sn aranır; doğrulamalar sayfa
 geçişlerini 12 sn'ye kadar bekler; opsiyonel adımlar 3 sn bekler.
+
+**Data-driven koşum (bir senaryo × çok veri):** Koşum panelinde birden
+fazla veri seti işaretlerseniz senaryo her setle ayrı ayrı, sırayla koşar —
+her set ayrı koşum kaydı olur. Örnek: "Geçerli Müşteri", "Eksik Alan",
+"Yanlış Format" setleriyle tek tıkla üç test.
 
 **Toplu koşum:** Senaryolar sayfasında kutucuklarla senaryoları seçin →
 **▶ Toplu Koş** → ortam + veri seti → Başlat. Senaryolar sırayla koşar,
