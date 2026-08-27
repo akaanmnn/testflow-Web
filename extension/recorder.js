@@ -164,13 +164,28 @@
     // (seçim yukarıdaki mousedown dinleyicisinde 'select' adımına çevrildi)
     if (rawTarget.closest('.select2-container, .select2-dropdown, .select2-selection, .select2-results')) return;
 
-    const el = rawTarget.closest('button, a, input, select, [role="button"], label') || rawTarget;
+    let el = rawTarget.closest('button, a, input, select, [role="button"], label') || rawTarget;
+
+    // Özel stillenmiş checkbox/radio (Bootstrap custom-control vb.):
+    // görünen kutucuk LABEL'dır, gerçek input görünmezdir. Locator'ı
+    // kırılgan label/CSS yerine stabil kimlikli (id/name) INPUT'tan üret.
+    if (el.tagName === 'LABEL') {
+      const forId = el.getAttribute('for');
+      const assoc = (forId && document.getElementById(forId)) ||
+                    el.querySelector('input[type="checkbox"], input[type="radio"]');
+      if (assoc && (assoc.type === 'checkbox' || assoc.type === 'radio')) el = assoc;
+    } else if (el === rawTarget) {
+      // label'sız sarmalayıcı div'e tıklama: içindeki checkbox/radio'yu ara
+      const inner = rawTarget.querySelector && rawTarget.querySelector('input[type="checkbox"], input[type="radio"]');
+      if (inner) el = inner;
+    }
+
     sendStep({
       action: 'click',
       candidates: JSON.stringify(buildCandidates(el)),
       value: null,
       sensitive: false,
-      meta: JSON.stringify({ tag: el.tagName.toLowerCase(), url: location.href }),
+      meta: JSON.stringify({ tag: el.tagName.toLowerCase(), inputType: el.type || null, url: location.href }),
     });
   }, true);
 
