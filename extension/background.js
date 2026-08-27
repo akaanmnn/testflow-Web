@@ -152,6 +152,38 @@ async function handle(msg, sender) {
     return { playing: true, steps: s.steps, index: s.index };
   }
 
+  // player.js: javascript: href'li linklerin kodunu sayfanın kendi
+  // dünyasında (MAIN world) çalıştır. Sentetik click'ler javascript:
+  // URL navigasyonunu tetikleyemez (user-activation şartı); doğrudan
+  // çalıştırma bu şarta takılmaz.
+  if (msg.type === 'EXEC_JS_HREF') {
+    const s = await getSession();
+    if (!s || s.mode !== 'play' || !sender.tab || sender.tab.id !== s.tabId) return { ok: false };
+    try {
+      await chrome.scripting.executeScript({
+        target: { tabId: sender.tab.id },
+        world: 'MAIN',
+        func: (code) => {
+          try {
+            (0, eval)(code);
+          } catch (e) {
+            // CSP eval'i engelliyorsa script etiketiyle dene
+            // (javascript: href çalışan sitede inline script de çalışır)
+            const el = document.createElement('script');
+            el.textContent = code;
+            document.documentElement.appendChild(el);
+            el.remove();
+          }
+        },
+        args: [msg.code],
+      });
+      return { ok: true };
+    } catch (e) {
+      console.error('EXEC_JS_HREF hatası:', e);
+      return { ok: false, error: String(e) };
+    }
+  }
+
   // player.js adım öncesi ekran görüntüsü ister
   if (msg.type === 'CAPTURE') {
     const s = await getSession();

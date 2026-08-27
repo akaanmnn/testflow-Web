@@ -193,7 +193,21 @@
         // adım tekrar aranıp yanlış fail üretirdi.
         const r = { status: 'passed', healed, healedStrategy, screenshot: await captureScreenshot() };
         await reportResult(stepIndex, step, r);
-        realisticClick(found.el);
+
+        // javascript: href'li link mi? Sentetik click bu URL'leri çalıştıramaz
+        // (tarayıcının user-activation şartı) — kodu background üzerinden
+        // sayfanın MAIN dünyasında doğrudan çalıştırırız.
+        const href = found.el.tagName === 'A' ? (found.el.getAttribute('href') || '').trim() : '';
+        if (href.toLowerCase().startsWith('javascript:')) {
+          // Olay zinciri yine gönderilir (mousedown dinleyen handler'lar için)
+          realisticClick(found.el);
+          await chrome.runtime.sendMessage({
+            type: 'EXEC_JS_HREF',
+            code: href.slice('javascript:'.length),
+          });
+        } else {
+          realisticClick(found.el);
+        }
         return r;
       } else if (step.action === 'fill') {
         if (step.value === '***' || step.value == null) {
