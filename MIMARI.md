@@ -156,6 +156,10 @@ kaybolur, aynı adım yeni sayfada tekrar aranır ve sahte "element bulunamadı"
    | href (linklerde) | 0.75 |
    | CSS yolu (≤6 seviye, nth-of-type) | 0.60 |
    | görünen metin — **bilinçli olarak son çare** (metinler sık değişir) | 0.45 |
+   | dinamik görünen id / name (framework üretimi: `input-8342`, `ember123`, uuid…) | 0.40–0.42 |
+
+   Skorlar **beklenen stabiliteye** göre dizilir; dinamik kalıplı id/name'ler
+   tespit edilip en alta itilir (id olmaları güven vermez, her yüklemede değişirler).
 
 4. **Hassas alanlar:** `type=password` veya ad/id'sinde şifre kalıbı geçen
    alanların değeri anında `***`'a çevrilir — gerçek değer eklentiden dışarı

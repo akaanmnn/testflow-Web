@@ -33,14 +33,26 @@
     return parts.join(' > ');
   }
 
+  // Dinamik (her yüklemede değişen) kimlik tespiti: framework üretimi
+  // id/name'ler ("input-8342", "ember123", ":r5:", uuid, uzun sayı blokları)
+  // aslında EN GÜVENİLMEZ locator'dır — skoru CSS'in de altına düşürülür.
+  function looksDynamic(v) {
+    if (!v) return false;
+    return /\d{3,}/.test(v) ||                      // 3+ basamaklı sayı bloğu
+      /^(ember|react|vue|ng|radix|mui|headlessui)[-_:]/i.test(v) ||
+      /^:r[a-z0-9]+:$/i.test(v) ||                   // React useId
+      /[0-9a-f]{8}-[0-9a-f]{4}/i.test(v) ||          // uuid parçası
+      /(^|[-_])(\d+)([-_]|$)/.test(v);              // ayraçlı sayı
+  }
+
   function buildCandidates(el) {
     const candidates = [];
     // Yapısal/anlamsal adaylar önce — metin EN SON çare (skoru en düşük):
     // buton/link metinleri sık değişir ("Giriş" → "Oturum Aç") ve otomasyonu kırar.
-    if (el.id) candidates.push({ strategy: 'id', value: el.id, score: 1.0 });
+    if (el.id) candidates.push({ strategy: 'id', value: el.id, score: looksDynamic(el.id) ? 0.4 : 1.0 });
     if (el.getAttribute('data-testid'))
       candidates.push({ strategy: 'data-testid', value: el.getAttribute('data-testid'), score: 0.98 });
-    if (el.name) candidates.push({ strategy: 'name', value: el.name, score: 0.9 });
+    if (el.name) candidates.push({ strategy: 'name', value: el.name, score: looksDynamic(el.name) ? 0.42 : 0.9 });
     if (el.getAttribute('aria-label'))
       candidates.push({ strategy: 'aria-label', value: el.getAttribute('aria-label'), score: 0.85 });
     if (el.placeholder) candidates.push({ strategy: 'placeholder', value: el.placeholder, score: 0.8 });
