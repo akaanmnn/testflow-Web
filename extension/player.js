@@ -116,7 +116,13 @@
     try { el.focus(); } catch {}
     try { el.dispatchEvent(new PointerEvent('pointerup', { ...opts, pointerId: 1, isPrimary: true })); } catch {}
     el.dispatchEvent(new MouseEvent('mouseup', opts));
-    el.dispatchEvent(new MouseEvent('click', opts));
+    // KRİTİK: click, dispatchEvent ile DEĞİL el.click() ile.
+    // Sentetik dispatch edilen click olayları linklerin varsayılan davranışını
+    // (href izleme, javascript: çalıştırma) tetiklemez — yalnızca el.click()
+    // metodu aktivasyon davranışını çalıştırır. dispatchEvent kullanılınca
+    // <a href="javascript:submitform(...)"> gibi linklerde tıklama "yapılmış"
+    // görünür ama hiçbir şey olmazdı.
+    el.click();
   }
 
   function setNativeValue(el, value) {
