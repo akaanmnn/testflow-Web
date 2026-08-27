@@ -1,15 +1,31 @@
 import { useEffect, useState } from 'react';
-import { api } from '../lib/api';
+import { api, getUser } from '../lib/api';
 
 export default function TestData() {
   const [sets, setSets] = useState([]);
   const [selected, setSelected] = useState(null);
   const [name, setName] = useState('');
   const [entries, setEntries] = useState([]);
+  const [projects, setProjects] = useState([]);
   const [error, setError] = useState('');
+  const user = getUser();
 
   const load = async () => setSets(await api('/test-data-sets'));
-  useEffect(() => { load().catch((e) => setError(e.message)); }, []);
+  useEffect(() => {
+    load().catch((e) => setError(e.message));
+    api('/projects').then(setProjects).catch(() => {});
+  }, []);
+
+  const copySet = async (setId, targetProjectId) => {
+    setError('');
+    try {
+      await api(`/test-data-sets/${setId}/copy`, {
+        method: 'POST',
+        body: JSON.stringify({ targetProjectId }),
+      });
+      alert('Veri seti kopyalandı.');
+    } catch (e) { setError(e.message); }
+  };
 
   const open = (set) => {
     setSelected(set);
@@ -130,6 +146,15 @@ export default function TestData() {
               + Anahtar Ekle
             </button>
             <div style={{ flex: 1 }} />
+            {selected.id && (
+              <select value="" onChange={(e) => e.target.value && copySet(selected.id, e.target.value)}
+                      style={{ width: 160 }}>
+                <option value="">Kopyala →</option>
+                {projects.filter((p) => p.id !== user?.workspaceId).map((p) => (
+                  <option key={p.id} value={p.id}>{p.personal ? '👤 ' : '📁 '}{p.name}</option>
+                ))}
+              </select>
+            )}
             {selected.id && <button className="danger" onClick={() => del(selected.id)}>Sil</button>}
             <button className="ghost" onClick={() => setSelected(null)}>Vazgeç</button>
             <button onClick={save} disabled={!name}>Kaydet</button>

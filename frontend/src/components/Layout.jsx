@@ -1,5 +1,6 @@
+import { useEffect, useState } from 'react';
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
-import { getUser, clearAuth } from '../lib/api';
+import { api, getUser, clearAuth, setAuth } from '../lib/api';
 
 const navStyle = ({ isActive }) => ({
   display: 'block',
@@ -16,6 +17,24 @@ const navStyle = ({ isActive }) => ({
 export default function Layout() {
   const user = getUser();
   const navigate = useNavigate();
+  const [projects, setProjects] = useState([]);
+
+  useEffect(() => {
+    api('/projects').then(setProjects).catch(() => {});
+  }, []);
+
+  const switchProject = async (id) => {
+    if (!id || id === user?.workspaceId) return;
+    if (id === '__new__') {
+      const name = window.prompt('Yeni proje adı:');
+      if (!name?.trim()) return;
+      const created = await api('/projects', { method: 'POST', body: JSON.stringify({ name }) });
+      id = created.id;
+    }
+    const res = await api(`/projects/${id}/switch`, { method: 'POST' });
+    setAuth(res.accessToken, res.user);
+    window.location.href = '/'; // tüm veriler yeni proje bağlamıyla yüklensin
+  };
 
   const logout = () => {
     clearAuth();
@@ -46,15 +65,27 @@ export default function Layout() {
             TestFlow
           </span>
         </div>
-        <div className="muted" style={{ fontSize: 12, marginBottom: 26, padding: '0 6px' }}>
-          {user?.workspaceName}
-        </div>
+        <select
+          value={user?.workspaceId || ''}
+          onChange={(e) => switchProject(e.target.value)}
+          style={{ marginBottom: 22, fontSize: 13 }}>
+          {projects.map((p) => (
+            <option key={p.id} value={p.id}>
+              {p.personal ? '👤 ' : '📁 '}{p.name}
+            </option>
+          ))}
+          {!projects.some((p) => p.id === user?.workspaceId) && (
+            <option value={user?.workspaceId}>{user?.workspaceName}</option>
+          )}
+          <option value="__new__">＋ Yeni proje…</option>
+        </select>
         <nav style={{ flex: 1 }}>
           <NavLink to="/" end style={navStyle}>Genel Bakış</NavLink>
           <NavLink to="/scenarios" style={navStyle}>Senaryolar</NavLink>
           <NavLink to="/test-data" style={navStyle}>Test Verileri</NavLink>
           <NavLink to="/environments" style={navStyle}>Ortamlar</NavLink>
           <NavLink to="/runs" style={navStyle}>Koşumlar</NavLink>
+          <NavLink to="/project" style={navStyle}>Proje Üyeleri</NavLink>
           <NavLink to="/help" style={navStyle}>Yardım</NavLink>
         </nav>
         <div style={{ borderTop: '1px solid var(--border)', paddingTop: 14, padding: '14px 6px 0' }}>

@@ -7,6 +7,10 @@ import lombok.Setter;
 
 import java.time.Instant;
 
+/**
+ * Proje (eski adıyla workspace). AD grubu eşlemesi kaldırıldı:
+ * kimlik doğrulama LDAP'ta, üyelik uygulamada (WorkspaceMember) yönetilir.
+ */
 @Entity
 @Table(name = "workspaces")
 @Getter @Setter @NoArgsConstructor
@@ -15,18 +19,23 @@ public class Workspace {
     @GeneratedValue(strategy = GenerationType.UUID)
     private String id;
 
-    /** AD grup adı — workspace ile bire bir eşlenir (örn. "QA-Team"). */
-    @Column(unique = true, nullable = false)
-    private String ldapGroup;
-
     @Column(nullable = false)
     private String name;
+
+    /** Projeyi oluşturan kullanıcı (AD kullanıcı adı). */
+    @Column(nullable = false)
+    private String ownerUsername;
+
+    /** Kişisel Alan mı? Her kullanıcıya ilk girişte bir tane açılır. */
+    @Column(nullable = false)
+    private boolean personal = false;
 
     @Column(updatable = false, nullable = false)
     private Instant createdAt = Instant.now();
 
-    public Workspace(String ldapGroup, String name) {
-        this.ldapGroup = ldapGroup;
+    public Workspace(String name, String ownerUsername, boolean personal) {
         this.name = name;
+        this.ownerUsername = ownerUsername;
+        this.personal = personal;
     }
 }

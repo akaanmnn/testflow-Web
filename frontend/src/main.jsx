@@ -10,6 +10,7 @@ import TestData from './pages/TestData';
 import Environments from './pages/Environments';
 import Runs from './pages/Runs';
 import Help from './pages/Help';
+import Project from './pages/Project';
 import { getToken } from './lib/api';
 import './styles.css';
 
@@ -30,6 +31,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
           <Route path="environments" element={<Environments />} />
           <Route path="runs" element={<Runs />} />
           <Route path="help" element={<Help />} />
+          <Route path="project" element={<Project />} />
         </Route>
       </Routes>
     </BrowserRouter>

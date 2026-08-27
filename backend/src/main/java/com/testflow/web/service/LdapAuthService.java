@@ -57,17 +57,15 @@ public class LdapAuthService {
     }
 
     /**
-     * Kullanıcının üyesi olduğu ilk grubu döner (workspace eşlemesi için).
-     * TODO(gerçek-AD): AD'de grup üyeliği kullanıcı nesnesindeki "memberOf"
-     * attribute'undan okunur; TestFlow gruplarını ayırt etmek için grup adı
-     * öneki (örn. "TF-") veya ayrı bir OU filtresi kullanın.
+     * Kullanıcı LDAP'ta var mı? (Projeye üye eklerken doğrulama için.)
+     * TODO(gerçek-AD): sAMAccountName ile arayın.
      */
-    public String findUserGroup(String username) {
-        String userDn = "uid=" + username + ",ou=users,dc=testflow,dc=com";
-        List<String> groups = ldapTemplate.search(
-                LdapQueryBuilder.query().base("ou=groups").where("member").is(userDn),
-                (AttributesMapper<String>) attrs -> getAttr(attrs, "cn"));
-        return groups.isEmpty() ? null : groups.get(0);
+    public LdapUser findUser(String username) {
+        List<LdapUser> users = ldapTemplate.search(
+                LdapQueryBuilder.query().base("ou=users").where("uid").is(username),
+                (AttributesMapper<LdapUser>) attrs -> new LdapUser(
+                        username, getAttr(attrs, "cn"), getAttr(attrs, "mail")));
+        return users.isEmpty() ? null : users.get(0);
     }
 
     private String getAttr(Attributes attrs, String name) {
